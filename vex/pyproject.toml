@@ -1,0 +1,4 @@
+[build-system]
+requires = ["setuptools"]
+dependencies = ["multidict", "ply"]
+build-backend = "setuptools.build_meta"

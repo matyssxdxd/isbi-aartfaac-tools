@@ -1,0 +1,458 @@
+VEX_rev = 1.5;
+*    pySCHED version: 1.26.2
+*    SCHED version:   Release 11.6; Feburary 2020
+*    VEX/SCHED:       1.5.5
+*    Other versions: Sched:  11.6 JPL-ephem: 1.01
+*    Catalog versions:
+*       Frequency: 2022Oct12-14:18:19
+*       Station:   2018Sep07-20:14:11
+*       Location:  2016Dec19-16:00:00
+*------------------------------------------------------------------------------
+$GLOBAL;
+     ref $EXPER = G004;
+*                                                      +------------+
+*                         PI revision number:          |    1.0000  |
+*                                                      +------------+
+*    mode:       
+*------------------------------------------------------------------------------
+$EXPER;
+*
+def G004;
+     exper_name = G004;
+     exper_description = "IVARS Group B6 keyfile template";
+     PI_name = "Ross A. Burns";
+     PI_email = ross.burns@riken.jp;
+*    address:   RIKEN
+*               Wako-shi
+*               Tokyo
+*               Japan
+*    phone:     +81-070-2614-2570
+*    during obs:
+*    fax:       
+*    Please, make sure the PHASE CAL is OFF.
+*    notes: VIRAC_Internal_Observation
+*
+*    year, doy: 2024, 103
+*    date     : Fri 12 Apr 2024
+*    MJD      : 60412
+     exper_nominal_start=2024y103d04h04m11s;
+     exper_nominal_stop=2024y103d05h58m52s;
+*
+     target_correlator = JIVE;
+*
+*    integr_time    : 2.0 s
+*    number_channels: 2
+*    number_antenna : 11
+*    cross_polarize : Yes
+*    weight_func    : UNIFORM
+*    distrib_medium : DAT
+*    distrib_format : FITS
+*    source_pos_cat : FROM SCHEDULE
+*    distribute_to  :
+*                     N/A
+*                     N/A
+*                     N/A
+*                     N/A
+*
+enddef;
+*------------------------------------------------------------------------------
+$MODE;
+*
+def b61;
+     ref $PROCEDURES = Procedure:Ir:Ib;
+     ref $IF = LO@5900MHzDPolNoTone:Ib;
+     ref $IF = LO@6100MHzDPolNoTone:Ir;
+     ref $BBC = 8BBCs:Ib:Ir;
+     ref $PHASE_CAL_DETECT = NoDetect:Ib:Ir;
+     ref $FREQ = 6656.94MHz16x8MHz:Ib:Ir;
+     ref $TRACKS = VDIF5032.16Ch2bit1to1:Ib:Ir;
+     ref $ROLL = NoRoll:Ib:Ir;
+enddef;
+*------------------------------------------------------------------------------
+$IF;
+*
+def LO@5900MHzDPolNoTone;
+* b61: Ib
+     if_def = &IF_A1 : A1 : R :   5900.00 MHz : U;
+     if_def = &IF_C1 : C1 : L :   5900.00 MHz : U;
+enddef;
+*
+def LO@6100MHzDPolNoTone;
+* b61: Ir
+     if_def = &IF_A1 : A1 : R :   6100.00 MHz : U;
+     if_def = &IF_C1 : C1 : L :   6100.00 MHz : U;
+enddef;
+*------------------------------------------------------------------------------
+$BBC;
+*
+def 8BBCs;
+* b61: Ib, Ir
+     BBC_assign = &BBC01 :  1 : &IF_A1;
+     BBC_assign = &BBC09 :  9 : &IF_C1;
+     BBC_assign = &BBC02 :  2 : &IF_A1;
+     BBC_assign = &BBC10 : 10 : &IF_C1;
+     BBC_assign = &BBC03 :  3 : &IF_A1;
+     BBC_assign = &BBC11 : 11 : &IF_C1;
+     BBC_assign = &BBC04 :  4 : &IF_A1;
+     BBC_assign = &BBC12 : 12 : &IF_C1;
+enddef;
+*------------------------------------------------------------------------------
+$PHASE_CAL_DETECT;
+*
+def NoDetect;
+* b61: Ib, Ir
+     phase_cal_detect = &NoCal;
+enddef;
+*------------------------------------------------------------------------------
+$FREQ;
+*
+def 6656.94MHz16x8MHz;
+* b61: Ib, Ir
+     chan_def =  : 6656.94 MHz : L :    8.00 MHz : &CH01 : &BBC01 : &NoCal; * RCP
+     chan_def =  : 6656.94 MHz : L :    8.00 MHz : &CH02 : &BBC09 : &NoCal; * LCP
+     chan_def =  : 6656.94 MHz : U :    8.00 MHz : &CH03 : &BBC01 : &NoCal; * RCP
+     chan_def =  : 6656.94 MHz : U :    8.00 MHz : &CH04 : &BBC09 : &NoCal; * LCP
+     chan_def =  : 6672.94 MHz : L :    8.00 MHz : &CH05 : &BBC02 : &NoCal; * RCP
+     chan_def =  : 6672.94 MHz : L :    8.00 MHz : &CH06 : &BBC10 : &NoCal; * LCP
+     chan_def =  : 6672.94 MHz : U :    8.00 MHz : &CH07 : &BBC02 : &NoCal; * RCP
+     chan_def =  : 6672.94 MHz : U :    8.00 MHz : &CH08 : &BBC10 : &NoCal; * LCP
+     chan_def =  : 6688.94 MHz : L :    8.00 MHz : &CH09 : &BBC03 : &NoCal; * RCP
+     chan_def =  : 6688.94 MHz : L :    8.00 MHz : &CH10 : &BBC11 : &NoCal; * LCP
+     chan_def =  : 6688.94 MHz : U :    8.00 MHz : &CH11 : &BBC03 : &NoCal; * RCP
+     chan_def =  : 6688.94 MHz : U :    8.00 MHz : &CH12 : &BBC11 : &NoCal; * LCP
+     chan_def =  : 6704.95 MHz : L :    8.00 MHz : &CH13 : &BBC04 : &NoCal; * RCP
+     chan_def =  : 6704.95 MHz : L :    8.00 MHz : &CH14 : &BBC12 : &NoCal; * LCP
+     chan_def =  : 6704.95 MHz : U :    8.00 MHz : &CH15 : &BBC04 : &NoCal; * RCP
+     chan_def =  : 6704.95 MHz : U :    8.00 MHz : &CH16 : &BBC12 : &NoCal; * LCP
+     sample_rate =  16.000 Ms/sec;
+enddef;
+*------------------------------------------------------------------------------
+$TRACKS;
+*
+def VDIF5032.16Ch2bit1to1;
+* b61: Ib, Ir
+     track_frame_format = VDIF5032;
+     fanout_def =  : &CH01 : sign : 1 :  1;
+     fanout_def =  : &CH01 :  mag : 1 :  1;
+     fanout_def =  : &CH02 : sign : 1 :  2;
+     fanout_def =  : &CH02 :  mag : 1 :  2;
+     fanout_def =  : &CH03 : sign : 1 :  3;
+     fanout_def =  : &CH03 :  mag : 1 :  3;
+     fanout_def =  : &CH04 : sign : 1 :  4;
+     fanout_def =  : &CH04 :  mag : 1 :  4;
+     fanout_def =  : &CH05 : sign : 1 :  5;
+     fanout_def =  : &CH05 :  mag : 1 :  5;
+     fanout_def =  : &CH06 : sign : 1 :  6;
+     fanout_def =  : &CH06 :  mag : 1 :  6;
+     fanout_def =  : &CH07 : sign : 1 :  7;
+     fanout_def =  : &CH07 :  mag : 1 :  7;
+     fanout_def =  : &CH08 : sign : 1 :  8;
+     fanout_def =  : &CH08 :  mag : 1 :  8;
+     fanout_def =  : &CH09 : sign : 1 :  9;
+     fanout_def =  : &CH09 :  mag : 1 :  9;
+     fanout_def =  : &CH10 : sign : 1 : 10;
+     fanout_def =  : &CH10 :  mag : 1 : 10;
+     fanout_def =  : &CH11 : sign : 1 : 11;
+     fanout_def =  : &CH11 :  mag : 1 : 11;
+     fanout_def =  : &CH12 : sign : 1 : 12;
+     fanout_def =  : &CH12 :  mag : 1 : 12;
+     fanout_def =  : &CH13 : sign : 1 : 13;
+     fanout_def =  : &CH13 :  mag : 1 : 13;
+     fanout_def =  : &CH14 : sign : 1 : 14;
+     fanout_def =  : &CH14 :  mag : 1 : 14;
+     fanout_def =  : &CH15 : sign : 1 : 15;
+     fanout_def =  : &CH15 :  mag : 1 : 15;
+     fanout_def =  : &CH16 : sign : 1 : 16;
+     fanout_def =  : &CH16 :  mag : 1 : 16;
+enddef;
+*------------------------------------------------------------------------------
+$ROLL;
+*
+def NoRoll;
+* b61: Ib, Ir
+     roll = off;
+enddef;
+*------------------------------------------------------------------------------
+$STATION;
+*
+def Ir;
+     ref $ANTENNA = IRBENE;
+     ref $DAS = DBBC+Mark5C;
+     ref $SITE = IRBENE;
+enddef;
+*
+def Ib;
+     ref $ANTENNA = IRBENE16;
+     ref $DAS = DBBC+Mark5C;
+     ref $SITE = IRBENE16;
+enddef;
+*------------------------------------------------------------------------------
+$ANTENNA;
+*
+def IRBENE;
+     axis_type = az : el;
+     antenna_motion = az :  120.0 deg/min : 3 sec;
+     antenna_motion = el :  120.0 deg/min : 3 sec;
+     pointing_sector = &ccw : az : -330.0 deg : -30.0 deg : el : 5.0 deg : 85.0 deg;
+     pointing_sector =   &n : az :  -30.0 deg :  30.0 deg : el : 5.0 deg : 85.0 deg;
+     pointing_sector =  &cw : az :   30.0 deg : 330.0 deg : el : 5.0 deg : 85.0 deg;
+     axis_offset =        0.0 m;
+enddef;
+*
+def IRBENE16;
+     axis_type = az : el;
+     antenna_motion = az :  120.0 deg/min : 3 sec;
+     antenna_motion = el :  120.0 deg/min : 3 sec;
+     pointing_sector = &ccw : az : -328.0 deg : -32.0 deg : el : 3.0 deg : 90.0 deg;
+     pointing_sector =   &n : az :  -32.0 deg :  32.0 deg : el : 3.0 deg : 90.0 deg;
+     pointing_sector =  &cw : az :   32.0 deg : 328.0 deg : el : 3.0 deg : 90.0 deg;
+     axis_offset =        0.0 m;
+enddef;
+*------------------------------------------------------------------------------
+$DAS;
+*
+def DBBC+Mark5C;
+     record_transport_type = Mark5C;
+     electronics_rack_type = DBBC;
+     number_drives = 2;
+     headstack = 1 :  : 0;
+     headstack = 2 :  : 1;
+     tape_motion = adaptive : 0 min : 0 min : 10 sec;
+enddef;
+*------------------------------------------------------------------------------
+$SITE;
+*
+def IRBENE;
+     site_type = fixed;
+     site_name = IRBENE;
+     site_ID = Ir;
+     site_position =  3183649.31400 m :  1276902.98900 m :  5359264.71000 m;
+     site_velocity =  -0.016860 m/yr :   0.015300 m/yr :   0.006370 m/yr;
+     site_position_epoch = 2016y320d;
+enddef;
+*
+def IRBENE16;
+     site_type = fixed;
+     site_name = IRBENE16;
+     site_ID = Ib;
+     site_position =  3183295.00000 m :  1276276.00000 m :  5359611.00000 m;
+     site_velocity =  -0.000000 m/yr :   0.000000 m/yr :   0.000000 m/yr;
+     site_position_epoch = 1997y001d;
+enddef;
+*------------------------------------------------------------------------------
+$PROCEDURES;
+*
+def Procedure;
+     procedure_name_prefix =  "01";
+     tape_change =  420 sec;
+     headstack_motion =    6 sec;
+     new_source_command =    5 sec;
+     new_tape_setup =   20 sec;
+     setup_always = on :  20 sec;
+     parity_check = off : 100 sec;
+     tape_prepass = off : 600 sec;
+     preob_cal  = on :  10 sec : preob;
+     midob_cal  = on :  15 sec : midob;
+     postob_cal = on :   0 sec : postob;
+enddef;
+*------------------------------------------------------------------------------
+$SOURCE;
+def W3OH;
+     source_name = W3OH;
+     ra = 02h27m03.8100000s; dec =  61d52'25.100000"; ref_coord_frame = J2000;
+enddef;
+def G111;
+     source_name = G111;
+     ra = 23h13m45.3860000s; dec =  61d28'09.810000"; ref_coord_frame = J2000;
+enddef;
+def M_17;
+     source_name = M_17;
+     ra = 18h20m24.8000000s; dec = -16d11'35.500000"; ref_coord_frame = J2000;
+enddef;
+def G043.795-0.1;
+     source_name = G043.795-0.1;
+     ra = 19h11m54.0100000s; dec =  09d35'50.500000"; ref_coord_frame = J2000;
+enddef;
+def G045.472+0.1;
+     source_name = G045.472+0.1;
+     ra = 19h14m08.5600000s; dec =  11d12'26.500000"; ref_coord_frame = J2000;
+enddef;
+def G049.599-0.2;
+     source_name = G049.599-0.2;
+     ra = 19h23m28.9300000s; dec =  14d40'00.800000"; ref_coord_frame = J2000;
+enddef;
+def J1925+2106;
+     source_name = J1925+2106;
+     ra = 19h25m59.6053559s; dec =  21d06'26.162015"; ref_coord_frame = J2000;
+enddef;
+def J2202+4216;
+     source_name = J2202+4216;
+     ra = 22h02m43.2913710s; dec =  42d16'39.979885"; ref_coord_frame = J2000;
+enddef;
+def J2230+6946;
+     source_name = J2230+6946;
+     ra = 22h30m36.4697543s; dec =  69d46'28.076894"; ref_coord_frame = J2000;
+enddef;
+*------------------------------------------------------------------------------
+$SCHED;
+*
+scan No0001;
+     start = 2024y103d04h04m11s;
+     mode = b61;
+     source = J2202+4216;
+     station = Ir : 0 sec : 180 sec :     0.000 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 180 sec :     0.000 GB :  : &ccw : 1;
+endscan;
+*
+scan No0002;
+     start = 2024y103d04h07m41s;
+     mode = b61;
+     source = W3OH;
+     station = Ir : 4 sec : 180 sec :    11.594 GB :  : &ccw : 1;
+     station = Ib : 4 sec : 180 sec :    11.594 GB :  : &ccw : 1;
+endscan;
+*
+scan No0003;
+     start = 2024y103d04h11m10s;
+     mode = b61;
+     source = G111;
+     station = Ir : 0 sec : 180 sec :    23.187 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 180 sec :    23.187 GB :  : &ccw : 1;
+endscan;
+*
+scan No0004;
+     start = 2024y103d04h14m40s;
+     mode = b61;
+     source = J2230+6946;
+     station = Ir : 0 sec : 180 sec :    34.781 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 180 sec :    34.781 GB :  : &ccw : 1;
+endscan;
+*
+scan No0005;
+     start = 2024y103d04h18m39s;
+     mode = b61;
+     source = J1925+2106;
+     station = Ir : 10 sec : 180 sec :    46.375 GB :  : &ccw : 1;
+     station = Ib : 10 sec : 180 sec :    46.375 GB :  : &ccw : 1;
+endscan;
+*
+scan No0006;
+     start = 2024y103d04h22m08s;
+     mode = b61;
+     source = G043.795-0.1;
+     station = Ir : 0 sec : 539 sec :    57.969 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :    57.969 GB :  : &ccw : 1;
+endscan;
+*
+scan No0007;
+     start = 2024y103d04h31m37s;
+     mode = b61;
+     source = G045.472+0.1;
+     station = Ir : 0 sec : 539 sec :    92.685 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :    92.685 GB :  : &ccw : 1;
+endscan;
+*
+scan No0008;
+     start = 2024y103d04h41m05s;
+     mode = b61;
+     source = G049.599-0.2;
+     station = Ir : 0 sec : 539 sec :   127.402 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :   127.402 GB :  : &ccw : 1;
+endscan;
+*
+scan No0009;
+     start = 2024y103d04h51m04s;
+     mode = b61;
+     source = J1925+2106;
+     station = Ir : 0 sec : 180 sec :   162.119 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 180 sec :   162.119 GB :  : &ccw : 1;
+endscan;
+*
+scan No0010;
+     start = 2024y103d04h54m33s;
+     mode = b61;
+     source = G043.795-0.1;
+     station = Ir : 0 sec : 539 sec :   173.713 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :   173.713 GB :  : &ccw : 1;
+endscan;
+*
+scan No0011;
+     start = 2024y103d05h04m01s;
+     mode = b61;
+     source = G045.472+0.1;
+     station = Ir : 0 sec : 539 sec :   208.429 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :   208.429 GB :  : &ccw : 1;
+endscan;
+*
+scan No0012;
+     start = 2024y103d05h13m30s;
+     mode = b61;
+     source = G049.599-0.2;
+     station = Ir : 0 sec : 539 sec :   243.146 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :   243.146 GB :  : &ccw : 1;
+endscan;
+*
+scan No0013;
+     start = 2024y103d05h23m28s;
+     mode = b61;
+     source = J1925+2106;
+     station = Ir : 0 sec : 180 sec :   277.863 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 180 sec :   277.863 GB :  : &ccw : 1;
+endscan;
+*
+scan No0014;
+     start = 2024y103d05h26m58s;
+     mode = b61;
+     source = G043.795-0.1;
+     station = Ir : 0 sec : 539 sec :   289.457 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :   289.457 GB :  : &ccw : 1;
+endscan;
+*
+scan No0015;
+     start = 2024y103d05h36m26s;
+     mode = b61;
+     source = G045.472+0.1;
+     station = Ir : 0 sec : 539 sec :   324.173 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :   324.173 GB :  : &ccw : 1;
+endscan;
+*
+scan No0016;
+     start = 2024y103d05h45m55s;
+     mode = b61;
+     source = G049.599-0.2;
+     station = Ir : 0 sec : 539 sec :   358.890 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 539 sec :   358.890 GB :  : &ccw : 1;
+endscan;
+*
+scan No0017;
+     start = 2024y103d05h55m53s;
+     mode = b61;
+     source = J1925+2106;
+     station = Ir : 0 sec : 180 sec :   393.607 GB :  : &ccw : 1;
+     station = Ib : 0 sec : 180 sec :   393.607 GB :  : &ccw : 1;
+endscan;
+*------------------------------------------------------------------------------*
+$THREADS; 
+*
+def IrIbThreads#0;
+*  Stations = Ir:Ib
+format = VDIF : : 512;
+thread = 0 : 1 : 1 : 512 : 16 : 2 : : : 8000;
+  channel = &CH01 : 0 : 8;
+  channel = &CH02 : 0 : 12;
+  channel = &CH03 : 0 : 0;
+  channel = &CH04 : 0 : 4;
+  channel = &CH05 : 0 : 9;
+  channel = &CH06 : 0 : 13;
+  channel = &CH07 : 0 : 1;
+  channel = &CH08 : 0 : 5;
+  channel = &CH09 : 0 : 10;
+  channel = &CH10 : 0 : 14;
+  channel = &CH11 : 0 : 2;
+  channel = &CH12 : 0 : 6;
+  channel = &CH13 : 0 : 11;
+  channel = &CH14 : 0 : 15;
+  channel = &CH15 : 0 : 3;
+  channel = &CH16 : 0 : 7;
+enddef;
+*

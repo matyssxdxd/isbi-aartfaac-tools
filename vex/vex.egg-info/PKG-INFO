@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: vex
+Version: 2.0
+Summary: VEX Parser
+Author: Mark Kettenis
+Author-email: kettenis@jive.nl
+License-File: COPYING
+Requires-Dist: ply
+Requires-Dist: multidict
+Dynamic: author
+Dynamic: author-email
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: summary

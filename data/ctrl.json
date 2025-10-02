@@ -1,0 +1,25 @@
+{
+  "exper_name": "G004",
+  "data": {
+    "Ib": [
+      ""
+    ],
+    "Ir": [
+      ""
+    ]
+  },
+  "start-time": "",
+  "stop-time": "",
+  "stations": [
+    "Ib",
+    "Ir"
+  ],
+  "scans": [
+    "No0002"
+  ],
+  "reference-station": "Ir",
+  "subbands": 8,
+  "number_of_channels": "128",
+  "integration_time": 2.0,
+  "output-path": "/home/matyss/JOB/RADIOBLOCKS/"
+}
