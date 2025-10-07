@@ -63,44 +63,28 @@ def read_visibility_file(visibility_path):
     return headers, visibilities
 
 def average_visibilities(visibilities):
-    # Convert list to numpy array for proper complex averaging
     vis_array = np.array(visibilities, dtype=np.complex64)
-    
-    # Vector average: mean of complex values (this preserves phase information)
     averaged_visibilities = np.mean(vis_array, axis=0)
-    
-    # Swap axes as before
     averaged_visibilities = np.swapaxes(averaged_visibilities, 1, 2)
-    
-    # Normalize by median amplitude (not median of absolute values to preserve phase)
+
     # median_amp = np.median(np.abs(averaged_visibilities))
     # if median_amp > 0:  # Avoid division by zero
     #     averaged_visibilities = averaged_visibilities / median_amp
-    
     return averaged_visibilities
 
 def vector_sum_visibilities(visibilities):
-    # Convert to numpy array for complex arithmetic
     vis_array = np.array(visibilities, dtype=np.complex64)
-    # Sum along the first axis (sum of all visibility vectors)
     summed_visibilities = np.sum(vis_array, axis=0)
-    # Wrap or convert to Quantity if needed (e.g., astropy.units.Quantity(summed_visibilities))
     vector_average = summed_visibilities
-    # Swap axes if required
-    vector_average = np.swapaxes(vector_average, 1, 2)
-
+    # vector_average = np.swapaxes(vector_average, 1, 2)
     return vector_average
 
 
-def average_channels_ll_rr(visibilities):
+def average_integration(visibilities):
     result = []
     for vis in visibilities:
-        # shape: [BASELINE][CHANNEL][POLARIZATION]
-        # Assuming polarization order is [LL, RR, ...]
-        # Average along the channel axis (axis=1)
-        avg = np.mean(vis, axis=1)  # shape: [BASELINE][2]
+        avg = np.mean(vis, axis=1)
         result.append(avg)
-    # shape: [N_integrations, N_baselines, 2]
     return np.array(result, dtype=np.complex64)
 
 def process_data(corr_files, average_integration=False):
@@ -109,7 +93,7 @@ def process_data(corr_files, average_integration=False):
     for file in corr_files:
         headers, visibilities = read_visibility_file(file)
         if average_integration:
-            processed_visibilities.append(average_channels_ll_rr(visibilities))
+            processed_visibilities.append(average_integration(visibilities))
         else:
             processed_visibilities.append(average_visibilities(visibilities))
 
