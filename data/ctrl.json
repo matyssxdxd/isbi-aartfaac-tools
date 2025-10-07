@@ -21,5 +21,8 @@
   "subbands": 8,
   "number_of_channels": "128",
   "integration_time": 2.0,
-  "output-path": "/home/matyss/JOB/RADIOBLOCKS/"
+  "output-path": "/home/matyss/JOB/RADIOBLOCKS/",
+  "_comment": "these should be replaced, currently used for plotting",
+  "data-path": "file:///home/matyss/JOB/RADIOBLOCKS/aartfaac-tools/data/SIN_SIN_0_25_PH/",
+  "plot-name": "SIN SIN 0.25 PHASE OFFSET"
 }
