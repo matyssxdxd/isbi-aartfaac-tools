@@ -80,7 +80,7 @@ def vector_sum_visibilities(visibilities):
     return vector_average
 
 
-def average_integration(visibilities):
+def average_integrations(visibilities):
     result = []
     for vis in visibilities:
         avg = np.mean(vis, axis=1)
@@ -93,7 +93,7 @@ def process_data(corr_files, average_integration=False):
     for file in corr_files:
         headers, visibilities = read_visibility_file(file)
         if average_integration:
-            processed_visibilities.append(average_integration(visibilities))
+            processed_visibilities.append(average_integrations(visibilities))
         else:
             processed_visibilities.append(average_visibilities(visibilities))
 
