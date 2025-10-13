@@ -23,6 +23,6 @@
   "integration_time": 2.0,
   "output-path": "/home/matyss/JOB/RADIOBLOCKS/",
   "_comment": "these should be replaced, currently used for plotting",
-  "data-path": "file:///home/matyss/JOB/RADIOBLOCKS/aartfaac-tools/data/SIN_SIN_0_25_PH/",
-  "plot-name": "SIN SIN 1MHZ BASE 0.25 PHASE OFFSET"
+  "data-path": "file:///home/matyss/JOB/RADIOBLOCKS/aartfaac-tools/data/SIN_SIN_REAL_FREQ_02_PHASE/",
+  "plot-name": "SIN SIN REAL FREQ 0.2 PHASE OFFSET"
 }
