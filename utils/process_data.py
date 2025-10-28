@@ -76,7 +76,7 @@ def vector_sum_visibilities(visibilities):
     vis_array = np.array(visibilities, dtype=np.complex64)
     summed_visibilities = np.sum(vis_array, axis=0)
     vector_average = summed_visibilities
-    # vector_average = np.swapaxes(vector_average, 1, 2)
+    vector_average = np.swapaxes(vector_average, 1, 2)
     return vector_average
 
 
@@ -87,13 +87,15 @@ def average_integrations(visibilities):
         result.append(avg)
     return np.array(result, dtype=np.complex64)
 
-def process_data(corr_files, average_integration=False):
+def process_data(corr_files, integration_average=False, vector_average=False):
     processed_visibilities = []
 
     for file in corr_files:
         headers, visibilities = read_visibility_file(file)
-        if average_integration:
+        if integration_average:
             processed_visibilities.append(average_integrations(visibilities))
+        elif vector_average:
+            processed_visibilities.append(vector_sum_visibilities(visibilities))
         else:
             processed_visibilities.append(average_visibilities(visibilities))
 

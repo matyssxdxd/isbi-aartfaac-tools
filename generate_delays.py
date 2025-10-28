@@ -3,6 +3,7 @@ import argparse
 import struct
 import json
 import vex
+import sys
 import os
 
 from scipy.interpolate import CubicSpline
@@ -26,6 +27,8 @@ with open(args.vex, 'r') as vex_f:
 
 reference_station = c['reference-station']
 stations = {station: v['STATION'][station]['SITE'] for station in [reference_station] + [station for station in c['stations'] if station != reference_station]}
+subbands = c['subbands']
+n_subbands = len(subbands)
 
 station_pos = {station: [float(pos.split()[0]) * un.m
     for pos in v['SITE'][stations[station]]['site_position']]
@@ -39,7 +42,6 @@ station_loc = {station: ac.EarthLocation.from_geocentric(
 
 scans = c['scans']
 
-# Generate a delay file for each scan
 # TODO: Duration should depend on the one in ctrl file not in VEX file?
 for scan in scans:
     source_name = v['SCHED'][scan]['source']
@@ -53,6 +55,8 @@ for scan in scans:
     # TODO:
     duration = int(v['SCHED'][scan]['station'][2].split()[0]) / 60
 
+    print([stations[k] for k in stations])
+    print([station_loc[k] for k in station_loc])
     ci = Calc(
         station_names=[stations[k] for k in stations],
         station_coords=[station_loc[k] for k in station_loc],
@@ -87,9 +91,22 @@ for scan in scans:
     chan_def = v['FREQ'][freq_key].getall('chan_def')
 
     for i in range(0, len(chan_def), 2):
-        center_frequencies = np.append(center_frequencies, float(chan_def[i][1].split()[0]))
+        current_frequency = float(chan_def[i][1].split()[0])
+        subband_bandwidth = float(chan_def[i][3].split()[0])
+        bound = chan_def[i][2]
+        if bound == 'L':
+            center_frequency = current_frequency - subband_bandwidth / 2
+        else:
+            center_frequency = current_frequency + subband_bandwidth / 2
+        center_frequencies = np.append(center_frequencies, center_frequency)
+
+    center_freqs = []
+
+    for subband in subbands:
+        center_freqs.append(center_frequencies[subband - 1])
 
     # TODO: Right now I assume that there is a $THREADS block, but it should be generated if there is not one
+
     threads_key = list(v['THREADS'].keys())[0]
     threads = v['THREADS'][threads_key].getall('channel')
     mapping = np.zeros(len(threads), dtype=int)
@@ -97,6 +114,13 @@ for scan in scans:
     for i in range(len(threads)):
         thread = threads[i]
         mapping[i] = int(thread[-1])
+
+    channel_mapping = []
+
+    for subband in subbands:
+        end_idx = subband * 2 - 1
+        start_idx = end_idx - 1
+        channel_mapping.extend(mapping[start_idx:end_idx+1])
 
     output_path = f'{c["output-path"]}/{c["exper_name"]}/{scan}/'
     if not os.path.exists(output_path):
@@ -107,9 +131,9 @@ for scan in scans:
             file.write(struct.pack('i', len(delays_intepolated[delay])))
             file.write(struct.pack('d' * len(delays_intepolated[delay]), *delays_intepolated[delay]))
 
-        file.write(struct.pack('i', len(center_frequencies)))
-        file.write(struct.pack('d' * len(center_frequencies), *center_frequencies))
+        file.write(struct.pack('i', len(center_freqs)))
+        file.write(struct.pack('d' * len(center_freqs), *center_freqs))
 
-        file.write(struct.pack('i', len(mapping)))
-        file.write(struct.pack('i' * len(mapping), *mapping))
+        file.write(struct.pack('i', len(channel_mapping)))
+        file.write(struct.pack('i' * len(channel_mapping), *channel_mapping))
 
