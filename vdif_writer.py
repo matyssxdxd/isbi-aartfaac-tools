@@ -1,21 +1,48 @@
+"""VDIF Writer module for generating and writing VDIF format data files.
+
+This module provides functionality to generate synthetic radio telescope data
+and write it in VDIF (VLBI Data Interchange Format) format, commonly used
+in radio astronomy for very long baseline interferometry.
+"""
+
 import struct
 import os
 from collections.abc import Callable
+from typing import Any
 
 import astropy.units as u
 import numpy as np
+from numpy.typing import NDArray
 from astropy.time import Time
 from baseband import vdif
 from tqdm import tqdm
 
 
 class VDIFWriter:
+    """A class for generating and writing VDIF format data files.
 
-    LEVELS_2BIT = np.array([-1, -1 / 3, 1 / 3, 1])
+    Attributes:
+        LEVELS_2BIT: Quantization levels for 2-bit data encoding.
+        signal_func: Callable function to generate signal data.
+        sample_rate: Sampling rate in Hz.
+        samples_per_frame: Number of samples per VDIF frame.
+        n_chan: Number of channels.
+        n_thread: Number of threads in VDIF format.
+        complex_data: Whether data is complex valued.
+        bps: Bits per sample (currently only 2 is supported).
+        edv: Extended Data Version number.
+        station: Station identifier.
+        start_time: Start time of the observation.
+        duration: Duration of the observation in seconds.
+        frequency: Base frequency in Hz.
+        frequency_spacing: Frequency spacing between subbands in Hz.
+    """
+
+    LEVELS_2BIT: NDArray[np.float64] = np.array([-1, -1 / 3, 1 / 3, 1])
 
     def __init__(
         self,
-        signal_func: Callable,
+        signal_func: Callable[[float, NDArray[np.float64], float, bool], NDArray[np.float64]],
         sample_rate: float = 16e6,
         samples_per_frame: int = 2000,
         n_chan: int = 16,
@@ -30,6 +57,24 @@ class VDIFWriter:
         frequency: float = 1e6,
         frequency_spacing: float = 0.0
     ) -> None:
+        """Initialize the VDIFWriter with configuration parameters.
+
+        Args:
+            signal_func: Function that generates signal data. Should accept
+                (frequency, time_array, phase, polarization) and return signal array.
+            sample_rate: Sampling rate in Hz. Defaults to 16 MHz.
+            samples_per_frame: Number of samples per VDIF frame. Defaults to 2000.
+            n_chan: Number of channels. Defaults to 16.
+            n_thread: Number of threads. Defaults to 1.
+            complex_data: Whether to use complex data format. Defaults to False.
+            bps: Bits per sample (only 2-bit supported). Defaults to 2.
+            edv: Extended Data Version. Defaults to 0.
+            station: Station identifier. Defaults to 0.
+            start_time: Start time of observation. Defaults to "2025-09-30T10:10:10.0" UTC.
+            duration: Duration of observation in seconds. Defaults to 20.
+            frequency: Base frequency in Hz. Defaults to 1 MHz.
+            frequency_spacing: Frequency spacing between subbands in Hz. Defaults to 0.0.
+        """
         self.signal_func = signal_func
         self.sample_rate = sample_rate
         self.samples_per_frame = samples_per_frame
@@ -46,12 +91,31 @@ class VDIFWriter:
 
         self._print_information()
 
-    def _quantize_2bit(self, data) -> np.ndarray:
+    def _quantize_2bit(self, data: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Quantize data to 2-bit representation.
+
+        Args:
+            data: Input data array to be quantized.
+
+        Returns:
+            Quantized data array using 2-bit levels.
+        """
         data = np.array(data)
         indices = np.abs(data[:, None] - self.LEVELS_2BIT).argmin(axis=1)
         return self.LEVELS_2BIT[indices]
 
-    def _quantize(self, data) -> np.ndarray:
+    def _quantize(self, data: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Quantize data based on configured bits per sample.
+
+        Args:
+            data: Input data array to be quantized.
+
+        Returns:
+            Quantized data array.
+
+        Raises:
+            ValueError: If bps is not supported (currently only 2-bit is supported).
+        """
         match self.bps:
             case 2:
                 return self._quantize_2bit(data)
@@ -59,6 +123,7 @@ class VDIFWriter:
                 raise ValueError(f"Unsupported bits per sample: {self.bps}. Supported values: 2")
 
     def _print_information(self) -> None:
+        """Print configuration information in a formatted table."""
         width = 100
         print('=' * width)
         print('VDIF Writer Information'.center(width))
@@ -78,10 +143,14 @@ class VDIFWriter:
         print(f'{"Signal frequency spacing:":<45} {str((self.frequency_spacing * u.Hz).to(u.MHz)):>54}')
         print('=' * width)
 
-    def run_cmd_das6(self, output_path) -> None:
+    def run_cmd_das6(self, output_path: str) -> None:
+        """Print the command for running the correlator on DAS6 cluster.
+
+        Args:
+            output_path: Path to the output directory containing VDIF files.
+        """
         width = 100
 
-        # Build the full command
         cmd = (
             f'TZ=UTC ISBI/ISBI '
             f'--configFile /var/scratch/mpurvins/generated_data/{output_path}/data.conf '
@@ -111,6 +180,14 @@ class VDIFWriter:
         print('=' * width)
 
     def write(self, output_path: str, filename: str, phase: float = 0.0, delay: float = 0.0) -> None:
+        """Write VDIF data file with generated signal data.
+
+        Args:
+            output_path: Relative path within './results/' directory for output.
+            filename: Name of the VDIF file to create.
+            phase: Phase offset to apply to the signal in radians. Defaults to 0.0.
+            delay: Time delay to apply to the signal in seconds. Defaults to 0.0.
+        """
         full_path = f'./results/{output_path}'
 
         if not os.path.exists(full_path):
@@ -158,6 +235,13 @@ class VDIFWriter:
         print('=' * width)
 
     def write_config(self, output_path: str, delay: float = 0.0) -> None:
+        """Write binary configuration file for the correlator.
+
+        Args:
+            output_path: Relative path within './results/' directory for output.
+            delay: Delay value to apply to station 2 in seconds. Defaults to 0.0.
+                Station 1 will have zero delay.
+        """
         width = 100
         mapping = list(range(self.n_chan))
         delay_count = self.duration // 2 + 1
@@ -172,7 +256,6 @@ class VDIFWriter:
         print('=' * width)
         print(f'{"Delay count:":<45} {delay_count:>54}')
 
-        # Format delays to fit within bounds
         delays_0_str = str([f"{d}s" for d in delays_0])
         if len(delays_0_str) > 52:
             delays_0_str = delays_0_str[:49] + '...'
@@ -183,13 +266,11 @@ class VDIFWriter:
             delays_1_str = delays_1_str[:49] + '...'
         print(f'{"Delays (Station 2):":<45} {delays_1_str:>54}')
 
-        # Format center frequencies to fit within bounds
         center_freq_str = str([f"{freq * u.Hz.to(u.MHz):.1f} MHz" for freq in center_frequencies])
         if len(center_freq_str) > 52:
             center_freq_str = center_freq_str[:49] + '...'
         print(f'{"Subband center frequencies:":<45} {center_freq_str:>54}')
 
-        # Format channel mapping to fit within bounds
         mapping_str = str(mapping)
         if len(mapping_str) > 52:
             mapping_str = mapping_str[:49] + '...'
@@ -213,7 +294,18 @@ class VDIFWriter:
         print('=' * width)
 
 
-def generate_sine_wave(freq, t, phase=0.0, pol=False) -> np.ndarray:
+def generate_sine_wave(freq: float, t: NDArray[np.float64], phase: float = 0.0, pol: bool = False) -> NDArray[np.float64]:
+    """Generate a sine wave signal.
+
+    Args:
+        freq: Frequency of the sine wave in Hz.
+        t: Time array in seconds.
+        phase: Phase offset in radians. Defaults to 0.0.
+        pol: Polarization flag. If True, adds π/2 phase shift. Defaults to False.
+
+    Returns:
+        Array containing the generated sine wave values.
+    """
     if pol:
         sine_wave = np.sin(2 * np.pi * freq * t + np.pi / 2 + phase)
     else:
