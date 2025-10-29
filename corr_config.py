@@ -3,6 +3,7 @@ import json
 import os
 import struct
 from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
 
 import numpy as np
 from astropy import coordinates as ac
@@ -16,10 +17,25 @@ import vex
 
 class CorrConfig:
     """
-    Yeah
+    Correlator configuration generator for ISBI-AARTFAAC correlator.
+
+    Attributes:
+        v (vex): Parsed VEX file as vex class.
+        c (dict): Parsed JSON file.
+        subbands (list): Selected subbands to process.
+        n_subbands (int): Number of subbands to process.
+        observation_name (str): Name of the experiment.
+        output_path (str): Output directory path for generated configuration files.
     """
 
-    def __init__(self, vex_path, ctrl_path):
+    def __init__(self, vex_path: str, ctrl_path: str) -> None:
+        """
+        Initialize CorrConfig with VEX and control file paths.
+
+        Args:
+            vex_path (str): Path to the VEX observation file.
+            ctrl_path (str): Path to the control JSON configuration file.
+        """
         self.v = self.__load_vex(vex_path)
         self.c = self.__load_ctrl(ctrl_path)
 
@@ -31,18 +47,42 @@ class CorrConfig:
         if not os.path.isdir(self.output_path):
             os.mkdir(self.output_path)
 
-    def __load_vex(self, path):
-        """Loads observations VEX file."""
+    def __load_vex(self, path: str) -> vex.Vex:
+        """
+        Load and parse VEX observation file.
+
+        Args:
+            path (str): Path to the VEX file.
+
+        Returns:
+            vex: Parsed VEX file as vex class.
+        """
         with open(path) as f:
             return vex.parse(f.read())
 
-    def __load_ctrl(self, path):
-        """Loads control JSON file."""
+    def __load_ctrl(self, path: str) -> Dict:
+        """
+        Load control configuration from JSON file.
+
+        Args:
+            path (str): Path to the control JSON file.
+
+        Returns:
+            dict: Control configuration dictionary.
+        """
         with open(path) as f:
             return json.load(f)
 
-    def __parse_vex_time(self, vex_time):
-        """Parse VEX time format (e.g., '2024y289d13h43m47s') to astropy Time."""
+    def __parse_vex_time(self, vex_time: str) -> Time:
+        """
+        Parse VEX time format to astropy Time object.
+
+        Args:
+            vex_time (str): Time string in VEX format (e.g., '2024y289d13h43m47s').
+
+        Returns:
+            astropy.time.Time: Parsed time in UTC scale.
+        """
         year = int(vex_time[:4])
         day_of_year = int(vex_time[5:8])
         hour = int(vex_time[9:11])
@@ -56,8 +96,15 @@ class CorrConfig:
 
         return Time(formatted_date, format="isot", scale="utc")
 
-    def __station_locations(self):
-        """Get ordered station locations with reference station first."""
+    def __station_locations(self) -> Tuple[Dict[str, ac.EarthLocation], List[str]]:
+        """
+        Get ordered station locations with reference station first.
+
+        Returns:
+            tuple: A tuple containing:
+                - dict: Dictionary mapping station names to EarthLocation objects.
+                - list: List of station site names.
+        """
         reference_station = self.c["reference-station"]
         other_stations = [s for s in self.c["stations"] if s != reference_station]
         station_names = [reference_station] + other_stations
@@ -75,8 +122,17 @@ class CorrConfig:
 
         return station_locations, station_sites
 
-    def __extract_delays(self, ci, station_list):
-        """Extract delay values from pycalc11 results."""
+    def __extract_delays(self, ci: Calc, station_list: List[str]) -> Dict[str, np.ndarray]:
+        """
+        Extract delay values from pycalc11 calculation results.
+
+        Args:
+            ci (pycalc11.Calc): Calc instance containing computed delays.
+            station_list (list): List of station names.
+
+        Returns:
+            dict: Dictionary mapping station names to numpy arrays of delay values.
+        """
         delays = {station: [] for station in station_list}
 
         for delay_set in ci.delay:
@@ -85,8 +141,18 @@ class CorrConfig:
 
         return {station: np.array(vals) for station, vals in delays.items()}
 
-    def __interpolate_delays(self, delays, n_original, n_target):
-        """Interpolate delays to get the exact number of delays required."""
+    def __interpolate_delays(self, delays: Dict[str, np.ndarray], n_original: int, n_target: int) -> Dict[str, np.ndarray]:
+        """
+        Interpolate delays using cubic splines to match target sample count.
+
+        Args:
+            delays (dict): Dictionary mapping station names to delay arrays.
+            n_original (int): Number of original delay samples.
+            n_target (int): Target number of delay samples after interpolation.
+
+        Returns:
+            dict: Dictionary mapping station names to interpolated delay arrays.
+        """
         x_original = np.linspace(0, 1, n_original)
         x_interp = np.linspace(0, 1, n_target)
 
@@ -97,7 +163,13 @@ class CorrConfig:
 
         return delays_interpolated
 
-    def center_frequencies(self):
+    def center_frequencies(self) -> np.ndarray:
+        """
+        Extract center frequencies for selected subbands from VEX file.
+
+        Returns:
+            numpy.ndarray: Array of center frequencies in MHz for selected subbands.
+        """
         freq_key = list(self.v["FREQ"].keys())[0]
         chan_def = self.v["FREQ"][freq_key].getall("chan_def")
 
@@ -115,7 +187,13 @@ class CorrConfig:
             [all_center_freqs[sb - 1] for sb in self.subbands], dtype=np.double
         )
 
-    def channel_mapping(self):
+    def channel_mapping(self) -> np.ndarray:
+        """
+        Generate channel mapping for selected subbands.
+
+        Returns:
+            numpy.ndarray: Array of channel mapping indices (uint32).
+        """
         threads_key = list(self.v["THREADS"].keys())[0]
         threads = self.v["THREADS"][threads_key].getall("channel")
 
@@ -128,11 +206,29 @@ class CorrConfig:
 
         return np.array(channel_mapping, dtype=np.uint32)
 
-    def scan_start_time(self, scan):
+    def scan_start_time(self, scan: str) -> Time:
+        """
+        Get the start time for a specific scan.
+
+        Args:
+            scan (str): Scan identifier from VEX SCHED section.
+
+        Returns:
+            astropy.time.Time: Scan start time in UTC.
+        """
         date_str = self.v["SCHED"][scan]["start"]
         return self.__parse_vex_time(date_str)
 
-    def scan_delays(self, scan):
+    def scan_delays(self, scan: str) -> Dict[str, np.ndarray]:
+        """
+        Calculate geometric delays for all stations during a scan.
+
+        Args:
+            scan (str): Scan identifier from VEX SCHED section.
+
+        Returns:
+            dict: Dictionary mapping station names to interpolated delay arrays.
+        """
         station_locations, station_sites = self.__station_locations()
         station_list = list(station_locations.keys())
 
@@ -161,7 +257,13 @@ class CorrConfig:
 
         return self.__interpolate_delays(delays, len(ci.delay), n_samples)
 
-    def write_scan_config(self, scan):
+    def write_scan_config(self, scan: str) -> None:
+        """
+        Write binary configuration file for a scan.
+
+        Args:
+            scan (str): Scan identifier from VEX SCHED section.
+        """
         config_path = f"{self.output_path}/{scan}/{scan}.conf"
 
         delays = self.scan_delays(scan)
@@ -179,7 +281,16 @@ class CorrConfig:
             file.write(struct.pack("i", len(channel_mapping)))
             file.write(struct.pack("i" * len(channel_mapping), *channel_mapping))
 
-    def scan_run_cmd(self, scan):
+    def scan_run_cmd(self, scan: str) -> str:
+        """
+        Generate correlator run command for a scan.
+
+        Args:
+            scan (str): Scan identifier from VEX SCHED section.
+
+        Returns:
+            str: Complete command line string for running the correlator.
+        """
         config_path = f"{self.output_path}/{scan}/{scan}.conf"
         channels = int(self.c["number_of_channels"])
         start_time = self.__parse_vex_time(self.v["SCHED"][scan]["start"])
@@ -219,7 +330,13 @@ class CorrConfig:
 
         return cmd
 
-    def get_scan_config(self, scan):
+    def get_scan_config(self, scan: str) -> None:
+        """
+        Generate and display scan configuration.
+
+        Args:
+            scan (str): Scan identifier from VEX SCHED section.
+        """
         scan_path = f"{self.output_path}/{scan}"
 
         if not os.path.isdir(scan_path):
