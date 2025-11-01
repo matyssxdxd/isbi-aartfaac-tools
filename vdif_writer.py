@@ -12,6 +12,7 @@ from typing import Any
 
 import astropy.units as u
 import numpy as np
+import matplotlib.pyplot as plt
 from numpy.typing import NDArray
 from astropy.time import Time
 from baseband import vdif
@@ -143,6 +144,20 @@ class VDIFWriter:
         print(f'{"Signal frequency spacing:":<45} {str((self.frequency_spacing * u.Hz).to(u.MHz)):>54}')
         print('=' * width)
 
+    def _plot_function(self, phase: float = 0.0, delay: float = 0.0) -> None:
+        n_subbands = self.n_chan // 2
+        fig, axs = plt.subplots(1, n_subbands)
+        t = np.arange(self.samples_per_frame)
+
+        for i in range(n_subbands):
+            freq = self.frequency + i * self.frequency_spacing
+            data_rcp = self.signal_func(freq, (t + delay), phase, False)
+            data_lcp = self.signal_func(freq, (t + delay), phase, True)
+            axs[i].plot(data_rcp)
+            axs[i].plot(data_lcp)
+
+        plt.show()
+
     def run_cmd_das6(self, output_path: str) -> None:
         """Print the command for running the correlator on DAS6 cluster.
 
@@ -188,6 +203,8 @@ class VDIFWriter:
             phase: Phase offset to apply to the signal in radians. Defaults to 0.0.
             delay: Time delay to apply to the signal in seconds. Defaults to 0.0.
         """
+        self._plot_function(phase, delay)
+
         full_path = f'./results/{output_path}'
 
         if not os.path.exists(full_path):
@@ -311,7 +328,6 @@ def generate_sine_wave(freq: float, t: NDArray[np.float64], phase: float = 0.0, 
     else:
         sine_wave = np.sin(2 * np.pi * freq * t + phase)
     return sine_wave
-
 
 if __name__ == "__main__":
     vdif_writer = VDIFWriter(signal_func=generate_sine_wave, frequency=1.05e6, duration=20)

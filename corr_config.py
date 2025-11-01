@@ -3,16 +3,15 @@ import json
 import os
 import struct
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
+import vex
 from astropy import coordinates as ac
 from astropy import units as un
 from astropy.time import Time
 from pycalc11 import Calc
 from scipy.interpolate import CubicSpline
-
-import vex
 
 
 class CorrConfig:
@@ -20,13 +19,20 @@ class CorrConfig:
     Correlator configuration generator for ISBI-AARTFAAC correlator.
 
     Attributes:
-        v (vex): Parsed VEX file as vex class.
-        c (dict): Parsed JSON file.
-        subbands (list): Selected subbands to process.
+        v (vex.Vex): Parsed VEX file as vex class.
+        c (Dict[str, Any]): Parsed JSON configuration file.
+        subbands (List[int]): Selected subbands to process.
         n_subbands (int): Number of subbands to process.
         observation_name (str): Name of the experiment.
         output_path (str): Output directory path for generated configuration files.
     """
+
+    v: vex.Vex
+    c: Dict[str, Any]
+    subbands: List[int]
+    n_subbands: int
+    observation_name: str
+    output_path: str
 
     def __init__(self, vex_path: str, ctrl_path: str) -> None:
         """
@@ -44,8 +50,7 @@ class CorrConfig:
         self.observation_name = self.c["exper_name"]
         self.output_path = f"{self.c['output-path']}{self.observation_name}"
 
-        if not os.path.isdir(self.output_path):
-            os.mkdir(self.output_path)
+        os.makedirs(self.output_path, exist_ok=True)
 
     def __load_vex(self, path: str) -> vex.Vex:
         """
@@ -55,12 +60,12 @@ class CorrConfig:
             path (str): Path to the VEX file.
 
         Returns:
-            vex: Parsed VEX file as vex class.
+            vex.Vex: Parsed VEX file as vex class.
         """
         with open(path) as f:
             return vex.parse(f.read())
 
-    def __load_ctrl(self, path: str) -> Dict:
+    def __load_ctrl(self, path: str) -> Dict[str, Any]:
         """
         Load control configuration from JSON file.
 
@@ -68,7 +73,7 @@ class CorrConfig:
             path (str): Path to the control JSON file.
 
         Returns:
-            dict: Control configuration dictionary.
+            Dict[str, Any]: Control configuration dictionary.
         """
         with open(path) as f:
             return json.load(f)
@@ -90,9 +95,7 @@ class CorrConfig:
         second = int(vex_time[15:17])
 
         date = datetime(year, 1, 1) + timedelta(days=day_of_year - 1)
-        formatted_date = date.strftime(
-            f"%Y-%m-%dT{hour:02}:{minute:02}:{second:02}.000"
-        )
+        formatted_date = f"{date.strftime('%Y-%m-%d')}T{hour:02}:{minute:02}:{second:02}.000"
 
         return Time(formatted_date, format="isot", scale="utc")
 
@@ -101,9 +104,9 @@ class CorrConfig:
         Get ordered station locations with reference station first.
 
         Returns:
-            tuple: A tuple containing:
-                - dict: Dictionary mapping station names to EarthLocation objects.
-                - list: List of station site names.
+            Tuple[Dict[str, ac.EarthLocation], List[str]]: A tuple containing:
+                - Dictionary mapping station names to EarthLocation objects.
+                - List of station site names.
         """
         reference_station = self.c["reference-station"]
         other_stations = [s for s in self.c["stations"] if s != reference_station]
@@ -128,10 +131,10 @@ class CorrConfig:
 
         Args:
             ci (pycalc11.Calc): Calc instance containing computed delays.
-            station_list (list): List of station names.
+            station_list (List[str]): List of station names.
 
         Returns:
-            dict: Dictionary mapping station names to numpy arrays of delay values.
+            Dict[str, np.ndarray]: Dictionary mapping station names to numpy arrays of delay values.
         """
         delays = {station: [] for station in station_list}
 
@@ -146,12 +149,12 @@ class CorrConfig:
         Interpolate delays using cubic splines to match target sample count.
 
         Args:
-            delays (dict): Dictionary mapping station names to delay arrays.
+            delays (Dict[str, np.ndarray]): Dictionary mapping station names to delay arrays.
             n_original (int): Number of original delay samples.
             n_target (int): Target number of delay samples after interpolation.
 
         Returns:
-            dict: Dictionary mapping station names to interpolated delay arrays.
+            Dict[str, np.ndarray]: Dictionary mapping station names to interpolated delay arrays.
         """
         x_original = np.linspace(0, 1, n_original)
         x_interp = np.linspace(0, 1, n_target)
@@ -170,7 +173,7 @@ class CorrConfig:
         Returns:
             numpy.ndarray: Array of center frequencies in MHz for selected subbands.
         """
-        freq_key = list(self.v["FREQ"].keys())[0]
+        freq_key = next(iter(self.v["FREQ"].keys()))
         chan_def = self.v["FREQ"][freq_key].getall("chan_def")
 
         all_center_freqs = []
@@ -184,7 +187,7 @@ class CorrConfig:
             all_center_freqs.append(center_freq)
 
         return np.array(
-            [all_center_freqs[sb - 1] for sb in self.subbands], dtype=np.double
+            [all_center_freqs[sb - 1] for sb in self.subbands], dtype=np.float64
         )
 
     def channel_mapping(self) -> np.ndarray:
@@ -194,7 +197,7 @@ class CorrConfig:
         Returns:
             numpy.ndarray: Array of channel mapping indices (uint32).
         """
-        threads_key = list(self.v["THREADS"].keys())[0]
+        threads_key = next(iter(self.v["THREADS"].keys()))
         threads = self.v["THREADS"][threads_key].getall("channel")
 
         all_chan_mapping = [int(thread[-1]) for thread in threads]
@@ -227,7 +230,7 @@ class CorrConfig:
             scan (str): Scan identifier from VEX SCHED section.
 
         Returns:
-            dict: Dictionary mapping station names to interpolated delay arrays.
+            Dict[str, np.ndarray]: Dictionary mapping station names to interpolated delay arrays.
         """
         station_locations, station_sites = self.__station_locations()
         station_list = list(station_locations.keys())
@@ -295,36 +298,42 @@ class CorrConfig:
         channels = int(self.c["number_of_channels"])
         start_time = self.__parse_vex_time(self.v["SCHED"][scan]["start"])
         runtime = int(self.v["SCHED"][scan]["station"][2].split()[0])
-        freq_key = list(self.v["FREQ"].keys())[0]
+
+        freq_key = next(iter(self.v["FREQ"].keys()))
         sample_rate = (
             float(self.v["FREQ"][freq_key].get("sample_rate").split()[0]) * un.MHz
         )
         bandwidth = (
             float(self.v["FREQ"][freq_key].get("chan_def")[3].split()[0]) * un.MHz
         )
-        sample_time = float(1.0 / sample_rate.to(un.Hz).value)
-        samples_per_second = 1.0 / sample_time
+
+        samples_per_second = sample_rate.to(un.Hz).value
         samples_per_subband = (
             int(self.c["integration_time"]) // 2 * int(samples_per_second / channels)
         )
 
-        input_path = self.c["data"][self.c["reference-station"]][scan]
-        for station in self.c["data"]:
-            if station != self.c["reference-station"]:
-                input_path += f",{self.c['data'][station][scan]}"
+        # Build input paths
+        ref_station = self.c["reference-station"]
+        input_paths = [self.c["data"][ref_station][scan]]
+        input_paths.extend(
+            self.c["data"][station][scan]
+            for station in self.c["data"]
+            if station != ref_station
+        )
+        input_path = ",".join(input_paths)
 
+        # Build output paths
         base_out = f"{self.output_path}/{scan}/"
-        output_path = ""
-        for i in range(1, self.n_subbands + 1):
-            output_path += f"{base_out}subband_{self.subbands[i-1]}.out"
-            if i != self.n_subbands:
-                output_path += ","
+        output_paths = [
+            f"{base_out}subband_{sb}.out" for sb in self.subbands
+        ]
+        output_path = ",".join(output_paths)
 
         cmd = (
             f"TZ=UTC ISBI/ISBI --configFile {config_path} -n2 "
             f"-t{samples_per_subband} -c{channels} -C{channels-1} -b16 -s{self.n_subbands} "
             f'-m15 -D "{str(start_time).replace("T", " ")[:-4]}" -r{runtime} '
-            f"-g0 -q1 -R0 -B0 -f{sample_rate.to(un.Hz).value} "
+            f"-g0 -q1 -R0 -B0 -f{samples_per_second} "
             f"--subbandBandwidth {bandwidth.to(un.Hz).value} -i {input_path} -o {output_path}"
         )
 
@@ -338,20 +347,21 @@ class CorrConfig:
             scan (str): Scan identifier from VEX SCHED section.
         """
         scan_path = f"{self.output_path}/{scan}"
-
-        if not os.path.isdir(scan_path):
-            os.mkdir(scan_path)
+        os.makedirs(scan_path, exist_ok=True)
 
         self.write_scan_config(scan)
         print(self.scan_run_cmd(scan))
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("vex")
-    parser.add_argument("control")
+    parser = argparse.ArgumentParser(
+        description="Generate correlator configuration for ISBI-AARTFAAC"
+    )
+    parser.add_argument("vex", help="Path to VEX observation file")
+    parser.add_argument("control", help="Path to control JSON configuration file")
+    parser.add_argument("scan", help="Scan identifier from VEX SCHED section")
 
     args = parser.parse_args()
 
     conf = CorrConfig(args.vex, args.control)
-    conf.get_scan_config("No0002")
+    conf.get_scan_config(args.scan)
