@@ -39,7 +39,7 @@ class VDIFWriter:
         frequency_spacing: Frequency spacing between subbands in Hz.
     """
 
-    LEVELS_2BIT: NDArray[np.float64] = np.array([-1, -1 / 3, 1 / 3, 1])
+    LEVELS_2BIT: NDArray[np.float64] = np.array([-3, -1, 1, 3])
 
     def __init__(
         self,
@@ -203,7 +203,7 @@ class VDIFWriter:
             phase: Phase offset to apply to the signal in radians. Defaults to 0.0.
             delay: Time delay to apply to the signal in seconds. Defaults to 0.0.
         """
-        self._plot_function(phase, delay)
+        # self._plot_function(phase, delay)
 
         full_path = f'./results/{output_path}'
 
@@ -327,11 +327,11 @@ def generate_sine_wave(freq: float, t: NDArray[np.float64], phase: float = 0.0, 
         sine_wave = np.sin(2 * np.pi * freq * t + np.pi / 2 + phase)
     else:
         sine_wave = np.sin(2 * np.pi * freq * t + phase)
-    return sine_wave
+    return 3 * sine_wave
 
 if __name__ == "__main__":
-    vdif_writer = VDIFWriter(signal_func=generate_sine_wave, frequency=1.05e6, duration=20)
-    vdif_writer.write(output_path='SIN_1_05MHZ', filename='data_1.vdif')
-    vdif_writer.write(output_path='SIN_1_05MHZ', filename='data_2.vdif', delay=1e-6)
-    vdif_writer.write_config(output_path='SIN_1_05MHZ', delay=1e-6)
-    vdif_writer.run_cmd_das6('SIN_1_05MHZ')
+    vdif_writer = VDIFWriter(signal_func=generate_sine_wave, frequency=1.25e6, duration=20)
+    vdif_writer.write_config(output_path='SIN_1_25MHZ_1msDEL', delay=1e-6)
+    vdif_writer.write(output_path='SIN_1_25MHZ_1msDEL', filename='data_1.vdif')
+    vdif_writer.write(output_path='SIN_1_25MHZ_1msDEL', filename='data_2.vdif', delay=1e-6)
+    vdif_writer.run_cmd_das6('SIN_1_25MHZ_1msDEL')

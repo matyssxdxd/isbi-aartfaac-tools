@@ -100,6 +100,7 @@ class ISBIAARTFAACPlot:
             ax4.plot(x_axis, np.abs(
                 self.data[averaging]['BL0BL1'][pol]), label=pol)
 
+
         ax1.set_title('AUTO BL0')
         ax1.set_ylabel('Amplitude')
         ax1.legend()

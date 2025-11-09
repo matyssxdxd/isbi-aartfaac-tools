@@ -2,10 +2,10 @@
   "exper_name": "B023",
   "data": {
     "Ib": {
-      "No0002": "/var/scratch/mpurvins/b023_ib_no0002.m5a"
+      "No0002": "/var/scratch/mpurvins/real_data/B023/No0002/b023_ib_no0002.m5a"
     },
     "Ir": {
-      "No0002": "/var/scratch/mpurvins/b023_ir_no0002.m5a"
+      "No0002": "/var/scratch/mpurvins/real_data/B023/No0002/b023_ir_no0002.m5a"
     }
   },
   "start-time": "",
@@ -18,11 +18,11 @@
     "No0002"
   ],
   "reference-station": "Ir",
-  "subbands": [1, 2, 3, 4, 5, 6, 7, 8],
+  "subbands": [3],
   "number_of_channels": "128",
   "integration_time": 2.0,
   "output-path": "/home/matyss/JOB/RADIOBLOCKS/",
   "_comment": "these should be replaced, currently used for plotting",
-  "data-path": "file:///home/matyss/JOB/RADIOBLOCKS/aartfaac-tools/data/3_SIN_1_05MHZ_SAME_FILES/",
-  "plot-name": "SIN 1.05MHz"
+  "data-path": "file:///home/matyss/JOB/RADIOBLOCKS/aartfaac-tools/data/5_B023_IR_IB/",
+  "plot-name": "B023 No0002 SB3"
 }
