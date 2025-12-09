@@ -19,10 +19,10 @@
   ],
   "reference-station": "Ir",
   "subbands": [3],
-  "number_of_channels": "128",
+  "number_of_channels": "256",
   "integration_time": 2.0,
-  "output-path": "/home/matyss/JOB/RADIOBLOCKS/",
+  "output-path": "/home/matyss/Work/Radioblocks/",
   "_comment": "these should be replaced, currently used for plotting",
-  "data-path": "file:///home/matyss/JOB/RADIOBLOCKS/aartfaac-tools/data/5_B023_IR_IB/",
-  "plot-name": "B023 No0002 SB3"
+  "data-path": "file:///home/matyss/Work/Radioblocks/isbi-aartfaac-tools/data/17_B023_IR_IB_D/",
+  "plot-name": "B023 IR IB SB3"
 }

@@ -329,9 +329,31 @@ def generate_sine_wave(freq: float, t: NDArray[np.float64], phase: float = 0.0, 
         sine_wave = np.sin(2 * np.pi * freq * t + phase)
     return 3 * sine_wave
 
+def generate_signal(freq: float, t: NDArray[np.float64], phase: float = 0.0, pol: bool = False) -> NDArray[np.float64]:
+    np.random.seed(42 + int(t[0]*1e6))
+    noise = np.random.randn(len(t))
+
+    # peak offset frequency
+    freq = 2e6
+    amplitude = 5.0
+
+    if pol:
+        sine_wave = np.sin(2 * np.pi * freq * t + np.pi / 2 + phase)
+    else:
+        sine_wave = np.sin(2 * np.pi * freq * t + phase)
+
+    return noise + amplitude * sine_wave
+
+
 if __name__ == "__main__":
-    vdif_writer = VDIFWriter(signal_func=generate_sine_wave, frequency=1.25e6, duration=20)
-    vdif_writer.write_config(output_path='SIN_1_25MHZ_1msDEL', delay=1e-6)
-    vdif_writer.write(output_path='SIN_1_25MHZ_1msDEL', filename='data_1.vdif')
-    vdif_writer.write(output_path='SIN_1_25MHZ_1msDEL', filename='data_2.vdif', delay=1e-6)
-    vdif_writer.run_cmd_das6('SIN_1_25MHZ_1msDEL')
+    SAMPLE_RATE = 16e6
+    SUBBAND_BANDWIDTH = SAMPLE_RATE / 2
+    N_CHANS = 16
+    N_SUBBANDS = N_CHANS / 2
+
+    filename = "noise_sine_2mhz_delayed"
+    vdif_writer = VDIFWriter(signal_func=generate_signal, sample_rate=SAMPLE_RATE, n_chan=N_CHANS, frequency_spacing=SUBBAND_BANDWIDTH, frequency=0.0, duration=20)
+    vdif_writer.write(output_path=filename, filename='data_1.vdif')
+    vdif_writer.write(output_path=filename, filename='data_2.vdif', delay=100e-9)
+    vdif_writer.write_config(output_path=filename, delay=100e-9)
+    vdif_writer.run_cmd_das6(filename)
