@@ -88,7 +88,7 @@ class ISBIAARTFAACPlot:
             2, 2, sharex=True, figsize=(12, 8))
 
         x_axis = np.arange(len(self.data[averaging]['BL0']['RR']))
-        for pol in ['RR', 'RL', 'LR', 'LL']:
+        for pol in ['RR', 'RL', 'LL', 'LR']:
             if pol in ['RR', 'LL']:
                 ax1.plot(x_axis, np.abs(
                     self.data[averaging]['BL0'][pol]), label=pol)

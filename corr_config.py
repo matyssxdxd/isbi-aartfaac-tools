@@ -172,27 +172,34 @@ class CorrConfig:
 
     def center_frequencies(self) -> np.ndarray:
         """
-        Extract center frequencies for selected subbands from VEX file.
+        Extract sky center frequencies for selected subbands.
+        One frequency per subband (not per channel).
 
         Returns:
-            numpy.ndarray: Array of center frequencies in MHz for selected subbands.
+            numpy.ndarray: Array of sky center frequencies in MHz, one per subband.
         """
         freq_key = next(iter(self.v["FREQ"].keys()))
         chan_def = self.v["FREQ"][freq_key].getall("chan_def")
+        bandwidth_mhz = float(chan_def[0][3].split()[0])  # 16.00 MHz
 
-        all_center_freqs = []
-        for i in range(0, len(chan_def), 2):
-            frequency = float(chan_def[i][1].split()[0])
-            bandwidth = float(chan_def[i][3].split()[0])
-            bound = chan_def[i][2]
+        all_subband_freqs = []
 
-            offset = bandwidth / 2
-            center_freq = frequency + offset if bound == "U" else frequency - offset
-            all_center_freqs.append(center_freq)
+        for i in range(0, len(chan_def), 2):  # Step by 2 (RCP + LCP = 1 subband)
+            bbc_freq_mhz = float(chan_def[i][1].split()[0])
+            sideband = chan_def[i][2]  # 'L' or 'U'
 
-        return np.array(
-            [all_center_freqs[sb - 1] for sb in self.subbands], dtype=np.float64
-        )
+            if sideband == 'L':
+                sky_freq = bbc_freq_mhz - bandwidth_mhz / 2
+            elif sideband == 'U':
+                sky_freq = bbc_freq_mhz + bandwidth_mhz / 2
+            else:
+                raise ValueError(f"Unknown sideband: {sideband}")
+
+            all_subband_freqs.append(sky_freq)
+
+        selected_freqs = [all_subband_freqs[sb - 1] for sb in self.subbands]
+
+        return np.array(selected_freqs, dtype=np.float64)
 
     def channel_mapping(self) -> np.ndarray:
         """
@@ -257,7 +264,7 @@ class CorrConfig:
         )
         ci.run_driver()
 
-        n_samples = 181
+        n_samples = 1081
         duration_sec = duration_min * 60
 
         time_offsets = np.linspace(0, duration_sec, n_samples)
@@ -266,14 +273,23 @@ class CorrConfig:
 
         delays = {station: [] for station in station_list}
 
-        # clock_offset = {'Ir': 8.233828125e-6, 'Ib': 8.114e-6}
-        # clock_rate = {'Ir': 2.02e-07, 'Ib': 1.99e-07}
+        clock_offset = {'Ir': 8.233828125e-6, 'Ib': 8.114e-6}
+        clock_rate = {'Ir': 2.02e-07, 'Ib': 1.99e-07}
+        clock_epoch = self.__parse_vex_time("2024y289d14h37m08s")
 
-        for delay_set in high_res_delays:
+        for t_idx, current_time in enumerate(fine_time_grid):
+            dt_seconds = (current_time - clock_epoch).sec
+            geometric_delay = high_res_delays[t_idx]
+
             for i, station in enumerate(station_list):
-                # clock_drift = clock_offset[station] + i * clock_rate[station]
-                clock_drift = 0
-                delays[station].append(delay_set[0][i][0].value - clock_drift)
+                drift = clock_offset[station] + (dt_seconds * clock_rate[station])
+                geo_delay = geometric_delay[0][i][0].value
+
+                total_delay = geo_delay + drift
+
+                print(f"{station} | geometric delay={geo_delay}, drift={drift}, total_delay={total_delay}")
+
+                delays[station].append(total_delay)
 
         return delays
 

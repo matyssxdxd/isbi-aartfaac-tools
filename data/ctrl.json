@@ -2,10 +2,10 @@
   "exper_name": "B023",
   "data": {
     "Ib": {
-      "No0002": "/var/scratch/mpurvins/real_data/B023/No0002/b023_ib_no0002.m5a"
+      "No0002": "/var/scratch/mpurvins/real_data/G004/No0002/"
     },
     "Ir": {
-      "No0002": "/var/scratch/mpurvins/real_data/B023/No0002/b023_ir_no0002.m5a"
+      "No0002": "/var/scratch/mpurvins/real_data/G004/No0002/"
     }
   },
   "start-time": "",
@@ -17,12 +17,12 @@
   "scans": [
     "No0002"
   ],
-  "reference-station": "Ir",
+  "reference-station": "Ib",
   "subbands": [3],
   "number_of_channels": "256",
   "integration_time": 2.0,
   "output-path": "/home/matyss/Work/Radioblocks/",
   "_comment": "these should be replaced, currently used for plotting",
-  "data-path": "file:///home/matyss/Work/Radioblocks/isbi-aartfaac-tools/data/17_B023_IR_IB_D/",
+  "data-path": "file:///home/matyss/Work/Radioblocks/isbi-aartfaac-tools/data/39_B023_IB_IR/",
   "plot-name": "B023 IR IB SB3"
 }
