@@ -23,6 +23,6 @@
   "integration_time": 2.0,
   "output-path": "/home/matyss/Work/Radioblocks/",
   "_comment": "these should be replaced, currently used for plotting",
-  "data-path": "file:///home/matyss/Work/Radioblocks/isbi-aartfaac-tools/data/39_B023_IB_IR/",
+  "data-path": "file:///home/matyss/Work/Radioblocks/isbi-aartfaac-tools/data/49_B023_IB_IR/",
   "plot-name": "B023 IR IB SB3"
 }

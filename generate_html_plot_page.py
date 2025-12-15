@@ -157,14 +157,16 @@ class ISBIAARTFAACPlot:
                         plt.savefig(f'{outdir}/{basename}_ph_large.png')
                         plt.close()
 
+                        # TODO: fix lag calculation
                         # Lag spectrum (small)
-                        lags = np.abs(np.fft.fftshift(np.fft.ifft(data)))
+                        lags = np.abs(np.fft.fftshift(np.fft.irfft(data)))
                         n = len(lags)
-                        t = np.arange(-(n//2), n//2 + 1)
-                        lag_offset = lags.argmax() - n//2
-                        
+                        t = np.arange(-(n//2), n//2)
+                        lag = lags.argmax() - n//2
+                        lag_offset = 1. - abs(lag)/float(n-1) if (abs(lag) < n - 1) else 1.
+                        noise = 180 / (2 * 0.881 * np.sqrt(1 * lag_offset))
                         plots[baseline][pol][sb_idx]['lag'] = lag_offset
-                        plots[baseline][pol][sb_idx]['snr'] = lags.max() / np.median(lags)
+                        plots[baseline][pol][sb_idx]['snr'] = lags.max() / noise
 
                         fig, ax = plt.subplots(figsize=(3, 2), dpi=100)
                         ax.plot(t, lags)

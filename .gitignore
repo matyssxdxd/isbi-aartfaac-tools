@@ -2,3 +2,4 @@
 /results/
 *.vdif
 /utils/__pycache__
+*.png
