@@ -22,7 +22,7 @@
   "number_of_channels": "256",
   "integration_time": 2.0,
   "output-path": "/home/matyss/Work/Radioblocks/",
-  "_comment": "these should be replaced, currently used for plotting",
-  "data-path": "file:///home/matyss/Work/Radioblocks/isbi-aartfaac-tools/data/49_B023_IB_IR/",
-  "plot-name": "B023 IR IB SB3"
+  "_comment": "these should be replaced, currently used for plotting 62",
+  "data-path": "file:///home/matyss/Work/Radioblocks/isbi-aartfaac-tools/data/93_B023_IR_IB/",
+  "plot-name": "B023 IB IR SB3"
 }
