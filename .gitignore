@@ -3,3 +3,6 @@
 *.vdif
 /utils/__pycache__
 *.png
+test_output.py
+plot_subbands.py
+*.conf

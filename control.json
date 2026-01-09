@@ -1,0 +1,8 @@
+{
+    "experiment": "B023",
+    "vex-path": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/data/B023.vex",
+    "scan-number": "No0002",
+    "output-path": "/home/matyss/Work/RADIOBLOCKS/",
+    "subbands": [3],
+    "integration-time": 2.0
+}

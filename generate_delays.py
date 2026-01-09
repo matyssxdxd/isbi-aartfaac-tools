@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-import argparse
-import json
-import os
-import struct
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Tuple
 
 import numpy as np
+import argparse
+import struct
+import json
 import vex
+
+from astropy.time import Time, TimeDelta
 from astropy import coordinates as ac
 from astropy import units as un
-from astropy.time import Time, TimeDelta
 from pycalc11 import Calc
 
 REFERENCE_STATION = "Ib"
@@ -22,40 +20,89 @@ def parse_vex_time(time_str):
     minute = int(time_str[12:14])
     second = int(time_str[15:17])
 
-    date = datetime(year, 1, 1) + timedelta(days=day_of_year - 1)
+    date = Time(f"{year}-01-01T00:00:00.000", format="isot", scale="utc") + TimeDelta(day_of_year - 1, format="jd")
     formatted_date = f"{date.strftime('%Y-%m-%d')}T{hour:02}:{minute:02}:{second:02}.000"
     return Time(formatted_date, format="isot", scale="utc")
 
-
-if __name__ == "__main__":
+def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Generate delay for ISBI-AARTFAAC correlator"
+        description='Generate delay for ISBI-AARTFAAC correlator'
     )
-    parser.add_argument("vex", help="Path to VEX observation file")
-    parser.add_argument("scan", help="Scan identifier from VEX SCHED section")
-    # parser.add_argument("lag_file", help="File with lag-fit delays (optional)")
-    args = parser.parse_args()
+    parser.add_argument('control', help='Path to control JSON file')
 
-    with open(args.vex) as f:
-        v = vex.parse(f.read())
+    return parser.parse_args()
 
-    scan = args.scan
+def extract_duration(vex_file, scan_nr):
+    scan_info = vex_file["SCHED"][scan_nr]
+    duration_str = scan_info["station"][2].split()[0]
+    return int(duration_str)
 
+def extract_clock_offsets(vex_file):
+    clock_block = vex_file['CLOCK']
+    clock_offsets = {}
+    for x in clock_block:
+        clock_offsets[x] = float(clock_block[x].get('clock_early')[1].split()[0]) * 1e-6
+    return clock_offsets
+
+def extract_center_frequencies(vex_file):
+    freq_block = vex_file['FREQ']
+    freq_key = list(freq_block.keys())[0]
+    freq_block = freq_block[freq_key]
+    all_chandefs = freq_block.getall('chan_def')
+
+    center_frequencies = set()
+    for chan_def in all_chandefs:
+        freq = float(chan_def[1].split()[0])
+        bound = chan_def[2]
+        bandwidth = float(chan_def[3].split()[0])
+
+        if bound == 'L':
+            freq -= bandwidth / 2
+        elif bound == 'U':
+            freq += bandwidth / 2
+
+        center_frequencies.add(freq)
+
+    return sorted(float(freq) * 1e6 for freq in center_frequencies) # Convert MHz to Hz
+
+def extract_channel_mapping(vex_file):
+    threads_block = vex_file['THREADS']
+    thread_key = list(threads_block.keys())[0]
+    threads_block = threads_block[thread_key]
+    all_channels = threads_block.getall('channel')
+    channel_mapping = []
+    for channel in all_channels:
+        channel_nr = int(channel[2])
+        channel_mapping.append(channel_nr)
+    return channel_mapping
+
+def save_config(path, delays, center_frequencies, channel_mapping):
+    with open(path, "wb") as file:
+        for delay in delays:
+            file.write(struct.pack("i", len(delays[delay])))
+            file.write(struct.pack("d" * len(delays[delay]), *delays[delay]))
+
+        file.write(struct.pack("i", len(center_frequencies)))
+        file.write(struct.pack("d" * len(center_frequencies), *center_frequencies))
+        file.write(struct.pack("i", len(channel_mapping)))
+        file.write(struct.pack("i" * len(channel_mapping), *channel_mapping))
+
+def geometric_delays(vex_file, scan_nr, n_integrations):
     other_stations = ["Ir"]
     station_names = [REFERENCE_STATION] + other_stations
 
-    station_sites = [v["STATION"][station]["SITE"] for station in station_names]
+    station_sites = [vex_file["STATION"][station]["SITE"] for station in station_names]
 
     station_locations = {}
     for station in station_names:
-        site = v["STATION"][station]["SITE"]
-        positions = v["SITE"][site]["site_position"]
+        site = vex_file["STATION"][station]["SITE"]
+        positions = vex_file["SITE"][site]["site_position"]
         coords = [float(pos.split()[0]) * un.m for pos in positions]
         station_locations[station] = ac.EarthLocation.from_geocentric(*coords)
 
-    scan_info = v["SCHED"][scan]
+    scan_info = vex_file["SCHED"][scan_nr]
 
-    source = v["SOURCE"][scan_info["source"]]
+    source = vex_file["SOURCE"][scan_info["source"]]
     source_coords = ac.SkyCoord(
         ra=[source["ra"]],
         dec=[source["dec"]],
@@ -65,6 +112,7 @@ if __name__ == "__main__":
 
     start_str = scan_info["start"]
     start_time = parse_vex_time(start_str)
+    start_time = start_time
     duration_str = scan_info["station"][2].split()[0]
     duration_min = int(duration_str) / 60
 
@@ -77,10 +125,9 @@ if __name__ == "__main__":
     )
     ci.run_driver()
 
-    N = 181
     duration_sec = duration_min * 60
 
-    time_offsets = np.linspace(0, duration_sec, N)
+    time_offsets = np.linspace(0, duration_sec, n_integrations)
     fine_time_grid = start_time + TimeDelta(time_offsets, format="sec")
     high_res_delays = ci.interpolate_delays(fine_time_grid)
 
@@ -93,51 +140,44 @@ if __name__ == "__main__":
 
     g_delays["Ib"] = np.array(g_delays["Ib"])
     g_delays["Ir"] = np.array(g_delays["Ir"])
-    
-    # print(g_delays["Ib"])
-    # print(g_delays["Ir"])
-    
-    
-    # rate_ir = 2.02e-07
-    # rate_ib = 1.99e-07
-    # offset_ir = 8.233828125e-6
-    # offset_ib = 8.114e-6
-    # total = offset_ir - offset_ib
-    # total_rate = rate_ir - rate_ib
-    
-    # rates = []
-    # for i in range(1, N + 1):
-    #     rates.append(total_rate * i)
-        
-    # rates = np.array(rates)
-    # g_delays["Ir"] += total
-    # g_delays["Ir"] += rates
-    
-        # Use baseline Ib-Ir delay model from visibility fit instead:
-    delay_rate_avg =-3.110075e-09
-    clock_offset_avg =-5.615988e-07
-    # time_offsets already runs from 0 .. duration_sec with N points
-    baseline_correction = clock_offset_avg + delay_rate_avg * time_offsets  # shape (N,)
 
-    # Apply to Ir wrt Ib
-    g_delays["Ir"] += baseline_correction
+    return g_delays
+
+if __name__ == '__main__':
+    args = parse_arguments()
+
+    with open(args.control) as f:
+        ctrl_file = json.load(f)
+
+    with open(ctrl_file['vex-path']) as f:
+        vex_file = vex.parse(f.read())
+
+    scan_nr = ctrl_file['scan-number']
+    duration = extract_duration(vex_file, scan_nr)
+    n_integrations = int(duration / ctrl_file['integration-time']) + 1
+    g_delays = geometric_delays(vex_file, scan_nr, n_integrations=n_integrations)
+    clock_offsets = extract_clock_offsets(vex_file)
+    g_delays['Ir'] -= (clock_offsets['IR'] - clock_offsets['IB'])
+    center_frequencies = extract_center_frequencies(vex_file)
+    channel_mapping = extract_channel_mapping(vex_file)
+    subbands = ctrl_file['subbands']
     
-    center_frequencies = [6667.69]
-    channel_mapping = [9, 13]
-    config_path = "./No0002.conf"
-    import struct
+    # subband 1 = index 0 and 1, subband 2 = index 2 and 3, ...
+    selected_indices = []
+    for subband in subbands:
+        selected_indices.extend([2 * (subband - 1), 2 * (subband - 1) + 1])
 
-    with open(config_path, "wb") as file:
-        for delay in g_delays:
-            print(delay)
-            file.write(struct.pack("i", len(g_delays[delay])))
-            file.write(struct.pack("d" * len(g_delays[delay]), *g_delays[delay]))
+    center_frequencies = [center_frequencies[i - 1] for i in subbands]
+    channel_mapping = [channel_mapping[i] for i in selected_indices]
 
-        file.write(struct.pack("i", len(center_frequencies)))
-        file.write(struct.pack("d" * len(center_frequencies), *center_frequencies))
-        file.write(struct.pack("i", len(channel_mapping)))
-        file.write(struct.pack("i" * len(channel_mapping), *channel_mapping))
+    print(f'First 10 delays for station Ib: {g_delays["Ib"][:10]}, last 10: {g_delays["Ib"][-10:]}')
+    print(f'First 10 delays for station Ir: {g_delays["Ir"][:10]}, last 10: {g_delays["Ir"][-10:]}')
+    print(f'Center frequencies: {center_frequencies}')
+    print(f'Channel mapping: {channel_mapping}')
 
-
-
-    
+    save_config(
+        ctrl_file['output-path'] + f"{scan_nr}.conf",
+        g_delays,
+        center_frequencies,
+        channel_mapping
+    )

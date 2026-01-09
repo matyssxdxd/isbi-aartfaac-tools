@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("QtAgg")  # or "QtAgg"
 import argparse
 import json
 import glob
@@ -16,10 +18,10 @@ BASELINES = ['BL0', 'BL0BL1', 'BL1']
 POLARIZATIONS = ['RR', 'RL', 'LR', 'LL']
 
 WEIGHTS = []
-# Bandwidth (Hz) used to convert lag bins to seconds
+# Bandwidth (Hz)
 BANDWIDTH_HZ = 16e6
-# Number of lag bins the user expects / wants to use for delay calculation
-# (user requested n = 127)
+# Sampling rate (Hz) - 2x bandwidth for complex sampling
+SAMPLING_RATE_HZ = 32e6
 USER_LAG_BINS = 255
 
 def read_raw_data(file_paths):
@@ -105,7 +107,7 @@ def plot_data(data):
 
             peak_idx = int(np.argmax(corr_abs))
             lag_bins = t_lag[peak_idx]
-            delay_seconds = lag_bins / BANDWIDTH_HZ
+            delay_seconds = lag_bins / SAMPLING_RATE_HZ
             
             freq = 6675.69
             freq0 = 6675.69 - 16
@@ -152,10 +154,8 @@ def plot_data(data):
                 axs[2].set_ylabel("Phase (deg)")
                 
             fig.suptitle(
-                f'subband=3, pol={pol}, lag={lag_bins}, del={delay_seconds}'
+                f'subband=3, pol={pol}'
             )
-            
-            print(f'pol={pol}, lag={lag_bins}, del={delay_seconds}')
             
             plt.tight_layout()
             plt.show()
@@ -198,6 +198,35 @@ def normalize_complex_array(a, eps=1e-12):
         return a
     return a / max_amp
 
+def print_lags_per_integration(raw_data_dict, t_int):
+    """Print lags for the 3rd integration for all polarizations."""
+    i = 2  # 3rd integration (0-indexed)
+    
+    print("\n" + "="*80)
+    print(f"Lags for Integration {i + 1} (index {i})")
+    print("="*80)
+    
+    print(f"{'Polarization':>12} {'Time (s)':>10} {'Lag bins':>12} {'Delay (ns)':>15}")
+    print("-" * 60)
+    
+    for pol in POLARIZATIONS:
+        lags_spec = raw_data_dict[0]["BL0BL1"][pol][i]
+        corr = np.fft.irfft(lags_spec)
+        corr = np.fft.fftshift(corr)
+        lags = np.abs(corr)
+        
+        n = len(lags)
+        t_lag = np.arange(-n//2, n//2 + 1)[:n]
+        
+        lag_idx = int(np.argmax(lags))
+        lag_bins = t_lag[lag_idx]
+        delay_seconds = lag_bins / SAMPLING_RATE_HZ
+        delay_ns = delay_seconds * 1e9
+        
+        print(f"{pol:>12} {t_int[i]:>10.1f} {lag_bins:>12} {delay_ns:>15.3f}")
+    
+    print("\n" + "="*80)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -231,7 +260,7 @@ if __name__ == "__main__":
 
             lag_idx = int(np.argmax(lags))
             lag_bins = t_lag[lag_idx]
-            delay_seconds = lag_bins / BANDWIDTH_HZ
+            delay_seconds = lag_bins / SAMPLING_RATE_HZ
             dels.append(delay_seconds)
 
         dels = np.array(dels)
@@ -257,6 +286,9 @@ if __name__ == "__main__":
     print("\nAveraged delay model:")
     print(f"delay_rate={delay_rate_avg:.6e} s/s")
     print(f"clock_offset={clock_offset_avg:.6e} s")
+
+    # Print lags for each integration
+    print_lags_per_integration(raw_data_dict, t_int)
  
     normalized_data = {
         subband: {
