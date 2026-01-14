@@ -6,3 +6,5 @@
 test_output.py
 plot_subbands.py
 *.conf
+*.ib
+*.ir

@@ -5,6 +5,7 @@ import argparse
 import struct
 import json
 import vex
+import os
 
 from astropy.time import Time, TimeDelta
 from astropy import coordinates as ac
@@ -43,6 +44,14 @@ def extract_clock_offsets(vex_file):
     for x in clock_block:
         clock_offsets[x] = float(clock_block[x].get('clock_early')[1].split()[0]) * 1e-6
     return clock_offsets
+
+def extract_clock_rates(vex_file):
+    clock_block = vex_file['CLOCK']
+    clock_rates = {}
+    for x in clock_block:
+        clock_rates[x] = float(clock_block[x].get('clock_early')[3])
+
+    return clock_rates
 
 def extract_center_frequencies(vex_file):
     freq_block = vex_file['FREQ']
@@ -87,6 +96,12 @@ def save_config(path, delays, center_frequencies, channel_mapping):
         file.write(struct.pack("i", len(channel_mapping)))
         file.write(struct.pack("i" * len(channel_mapping), *channel_mapping))
 
+def extract_start_time(vex_file, scan_nr):
+    scan_info = vex_file["SCHED"][scan_nr]
+    start_str = scan_info["start"]
+    start_time = parse_vex_time(start_str)
+    return start_time
+
 def geometric_delays(vex_file, scan_nr, n_integrations):
     other_stations = ["Ir"]
     station_names = [REFERENCE_STATION] + other_stations
@@ -110,9 +125,7 @@ def geometric_delays(vex_file, scan_nr, n_integrations):
         equinox="J2000",
     )
 
-    start_str = scan_info["start"]
-    start_time = parse_vex_time(start_str)
-    start_time = start_time
+    start_time = extract_start_time(vex_file, scan_nr)
     duration_str = scan_info["station"][2].split()[0]
     duration_min = int(duration_str) / 60
 
@@ -141,7 +154,38 @@ def geometric_delays(vex_file, scan_nr, n_integrations):
     g_delays["Ib"] = np.array(g_delays["Ib"])
     g_delays["Ir"] = np.array(g_delays["Ir"])
 
-    return g_delays
+    return g_delays, time_offsets
+
+def parse_gps(filename):
+    data = []
+    with open(filename, 'r') as f:
+        for line in f:
+            line = line.strip()
+            # skip empty lines and comments
+            if not line or line.startswith("#"):
+                continue
+            # split fields with whitespace
+            parts = line.split()
+            if len(parts) != 4:
+                continue  # skip lines which don't have exactly 4 columns
+            mjd, offset, rms, gps_name = parts
+            try:
+                entry = {
+                    'mjd': float(mjd),
+                    'offset_us': float(offset),
+                    'rms_us': float(rms),
+                    'gps_name': gps_name
+                }
+                data.append(entry)
+            except ValueError:
+                continue  # skip lines that can't be parsed
+    return data
+
+def get_offset_for_mjd(gps_data, target_mjd):
+    for entry in gps_data:
+        if np.floor(entry['mjd']) == target_mjd:
+            return entry['offset_us'] * 1e-6
+    return 0.0
 
 if __name__ == '__main__':
     args = parse_arguments()
@@ -155,13 +199,31 @@ if __name__ == '__main__':
     scan_nr = ctrl_file['scan-number']
     duration = extract_duration(vex_file, scan_nr)
     n_integrations = int(duration / ctrl_file['integration-time']) + 1
-    g_delays = geometric_delays(vex_file, scan_nr, n_integrations=n_integrations)
+    g_delays, time_offsets = geometric_delays(vex_file, scan_nr, n_integrations=n_integrations)
     clock_offsets = extract_clock_offsets(vex_file)
-    g_delays['Ir'] -= (clock_offsets['IR'] - clock_offsets['IB'])
+    clock_rates = extract_clock_rates(vex_file)
     center_frequencies = extract_center_frequencies(vex_file)
     channel_mapping = extract_channel_mapping(vex_file)
     subbands = ctrl_file['subbands']
-    
+    start_time = extract_start_time(vex_file, scan_nr)
+    start_time_mjd = np.floor(start_time.mjd)
+
+    gps_ib = parse_gps('./gps(1).ib')
+    gps_ir = parse_gps('./gps(1).ir')
+
+    offset_ib = get_offset_for_mjd(gps_ib, start_time_mjd)
+    offset_ir = get_offset_for_mjd(gps_ir, start_time_mjd)
+
+    g_delays['Ir'] -= offset_ir
+    g_delays['Ib'] -= offset_ib
+
+    # right now I'm adding some extra delay that I calculate from the lags
+    # TODO: investigate what else can be done, cus this is probably not good
+    g_delays['Ir'] -= (2.0e-6 + 7.65625e-7 + 6.25e-8 / 2)
+
+    for d in g_delays:
+        g_delays[d] = -g_delays[d]
+
     # subband 1 = index 0 and 1, subband 2 = index 2 and 3, ...
     selected_indices = []
     for subband in subbands:
@@ -170,13 +232,13 @@ if __name__ == '__main__':
     center_frequencies = [center_frequencies[i - 1] for i in subbands]
     channel_mapping = [channel_mapping[i] for i in selected_indices]
 
-    print(f'First 10 delays for station Ib: {g_delays["Ib"][:10]}, last 10: {g_delays["Ib"][-10:]}')
-    print(f'First 10 delays for station Ir: {g_delays["Ir"][:10]}, last 10: {g_delays["Ir"][-10:]}')
-    print(f'Center frequencies: {center_frequencies}')
-    print(f'Channel mapping: {channel_mapping}')
+    output_path = f'{ctrl_file["output-path"]}/{ctrl_file["experiment"]}/'
+
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
 
     save_config(
-        ctrl_file['output-path'] + f"{scan_nr}.conf",
+        output_path + f"{scan_nr}.conf",
         g_delays,
         center_frequencies,
         channel_mapping
