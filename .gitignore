@@ -8,3 +8,5 @@ plot_subbands.py
 *.conf
 *.ib
 *.ir
+pyrightconfig.json
+corr_files

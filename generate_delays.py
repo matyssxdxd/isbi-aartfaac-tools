@@ -219,7 +219,8 @@ if __name__ == '__main__':
 
     # right now I'm adding some extra delay that I calculate from the lags
     # TODO: investigate what else can be done, cus this is probably not good
-    g_delays['Ir'] -= (2.0e-6 + 7.65625e-7 + 6.25e-8 / 2)
+    # g_delays['Ir'] -= (2.0e-6 + 7.65625e-7 + 6.25e-8 / 4 - 2.5e-7)
+    g_delays['Ir'] -= (2.5e-6)
 
     for d in g_delays:
         g_delays[d] = -g_delays[d]

@@ -19,7 +19,7 @@ class SFXCData:
     try:
       self.inputfile = open(corfilename, 'rb')
     except:
-      print >> sys.stderr, "Error : Could not open " + corfilename
+      print(sys.stderr, "Error : Could not open " + corfilename)
       sys.exit(1)
     
     self._integration_byte_pos = []
@@ -49,7 +49,7 @@ class SFXCData:
       return False
     
     self.current_int -= 1
-    inputfile.seek(self._integration_byte_pos[self.current_int])
+    self.inputfile.seek(self._integration_byte_pos[self.current_int])
     return self._read_integration()
 
   def next_integration(self):

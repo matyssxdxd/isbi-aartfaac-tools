@@ -93,30 +93,98 @@ if __name__ == '__main__':
         ax2.plot(x, ampl, label=POLS[i], linewidth=1)
         ax2.set_ylabel('Amplitude')
         ax2.set_xlabel('Frequency (MHz)')
-        ax1.set_xlim(6643.69, 6739.68)
+        ax2.set_xlim(6643.69, 6739.68)
         ax2.legend()
 
         corr = np.fft.irfft(data)
         corr = np.fft.fftshift(corr)
         lags = np.arange(-len(corr) // 2, len(corr) // 2, + 1)[:len(corr)]
+        peak_idx = np.argmax(np.abs(corr))
+        lag_peak = lags[peak_idx]
+        print(lag_peak, POLS[i])
 
         ax3.plot(lags, np.abs(corr), label=POLS[i], linewidth=1)
         ax3.set_ylabel('Amplitude')
         ax3.set_xlabel('Lag')
         ax3.legend()
 
-
     plt.suptitle(f'{args.exper} | Amplitude + Phase + Lag')
     plt.tight_layout()
     plt.show()
 
+    from sfxcdata import SFXCData
 
+    sfxc = SFXCData('./corr_files/B023.cor_0002')
+    sfxc.next_integration()
 
+    vis = ('Ib', 'Ir')
+    cross_chans = sfxc.vis[vis].keys()
+    chans = []
 
+    integrations_dict = {
+        'RR': [],
+        'RL': [],
+        'LR': [],
+        'LL': []
+    }
 
+    while sfxc.next_integration():
+        cross_chans = sfxc.vis[vis].keys()
+        for chan in cross_chans:
+            if chan.freqnr == 1 and chan.sideband == 0:
+                data = sfxc.vis[vis][chan].vis
+                if chan.pol1 == 0 and chan.pol2 == 0:
+                    integrations_dict['RR'].append(data)
+                elif chan.pol1 == 0 and chan.pol2 == 1:
+                    integrations_dict['RL'].append(data)
+                elif chan.pol1 == 1 and chan.pol2 == 0:
+                    integrations_dict['LR'].append(data)
+                elif chan.pol1 == 1 and chan.pol2 == 1:
+                    integrations_dict['LL'].append(data)
 
+    for pol in integrations_dict:
+        integrations_dict[pol] = np.mean(integrations_dict[pol], axis=0)
 
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10))
+    all_cross = [
+        np.array(integrations_dict['RR']),
+        np.array(integrations_dict['RL']),
+        np.array(integrations_dict['LR']),
+        np.array(integrations_dict['LL'])
+    ]
 
+    for i, cross in enumerate(all_cross):
+        data = np.flip(cross.flatten())
+        x = np.linspace(6643.69, 6739.68, len(data))
+        phase = np.angle(data, deg=True)
+        ampl = np.abs(data)
 
+        ax1.scatter(x, phase, label=POLS[i], s=6)
+        ax1.set_ylabel('Phase (deg)')
+        ax1.set_xlabel('Frequency (MHz)')
+        ax1.set_ylim(-200, 200)
+        ax1.set_xlim(6643.69, 6739.68)
+        ax1.legend()
 
+        ax2.plot(x, ampl, label=POLS[i], linewidth=1)
+        ax2.set_ylabel('Amplitude')
+        ax2.set_xlabel('Frequency (MHz)')
+        ax2.set_xlim(6643.69, 6739.68)
+        ax2.legend()
 
+        corr = np.fft.irfft(data)
+        corr = np.fft.fftshift(corr)
+        lags = np.arange(-len(corr) // 2, len(corr) // 2, + 1)[:len(corr)]
+
+        peak_idx = np.argmax(np.abs(corr))
+        lag_peak = lags[peak_idx]
+        print(lag_peak, POLS[i])
+
+        ax3.plot(lags, np.abs(corr), label=POLS[i], linewidth=1)
+        ax3.set_ylabel('Amplitude')
+        ax3.set_xlabel('Lag')
+        ax3.legend()
+
+    plt.suptitle(f'{args.exper} | Amplitude + Phase + Lag (SFXCData)')
+    plt.tight_layout()
+    plt.show()
