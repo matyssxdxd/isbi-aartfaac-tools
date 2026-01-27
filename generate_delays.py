@@ -214,16 +214,39 @@ if __name__ == '__main__':
     offset_ib = get_offset_for_mjd(gps_ib, start_time_mjd)
     offset_ir = get_offset_for_mjd(gps_ir, start_time_mjd)
 
-    g_delays['Ir'] -= offset_ir
-    g_delays['Ib'] -= offset_ib
+    # g_delays['Ir'] -= offset_ir
+    # g_delays['Ib'] -= offset_ib
+    # print('From VEX:')
+    # print(f'offset_ir: {clock_offsets["IR"]}')
+    # print(f'offset_ib: {clock_offsets["IB"]}')
+    # print(f'difference: {clock_offsets["IR"] - clock_offsets["IB"]}')
+
+    # print('From GPS:')
+    # print(f'offset_ir: {offset_ir}')
+    # print(f'offset_ib: {offset_ib}')
+    # print(f'difference: {offset_ir - offset_ib}')
 
     # right now I'm adding some extra delay that I calculate from the lags
     # TODO: investigate what else can be done, cus this is probably not good
-    # g_delays['Ir'] -= (2.0e-6 + 7.65625e-7 + 6.25e-8 / 4 - 2.5e-7)
-    g_delays['Ir'] -= (2.5e-6)
+    # 2 TEST
+    # g_delays['Ir'] -= (2.0e-6)
+    # 3 TEST
+    # g_delays['Ir'] -= (2.0e-6 + 7.65625e-7)
 
-    for d in g_delays:
-        g_delays[d] = -g_delays[d]
+    g_delays['Ir'], g_delays['Ib'] = g_delays['Ib'], g_delays['Ir']
+    # g_delays['Ir'] += clock_offsets['IR']
+    # g_delays['Ib'] += clock_offsets['IB']
+    g_delays['Ir'] += offset_ir
+    g_delays['Ib'] += offset_ib
+    g_delays['Ir'] += 2.0e-6 + 7.65625e-7
+    # g_delays['Ir'] += 2.640625e-6
+    # g_delays['Ir'] += 2.234375e-6
+
+    # 6_TEST
+    # g_delays['Ir'] -= 2.640625e-6
+
+    # for d in g_delays:
+    #     g_delays[d] = -g_delays[d]
 
     # subband 1 = index 0 and 1, subband 2 = index 2 and 3, ...
     selected_indices = []

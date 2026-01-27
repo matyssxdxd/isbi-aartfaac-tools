@@ -11,6 +11,8 @@ from utils.process_data import read_visibility_file
 BL_AUTO0 = 0
 BL_CROSS = 1
 BL_AUTO1 = 2
+FREQ_LOW = 6675.69 - 16.0
+FREQ_HIGH = 6675.69
 
 POLS = ['RR', 'RL', 'LR', 'LL']
 
@@ -50,36 +52,36 @@ def average_visibilities(visibilities):
 
     return np.array(averaged_visibilities)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='ISBI-AARTFAAC correlator output processing')
-    parser.add_argument(
-            'input',
-            nargs='+',
-            help='One or more correlator output files, or a folder containig .out files'
-    )
-    parser.add_argument(
-            'exper'
-    )
-
-    args = parser.parse_args()
-    exper = args.exper
-
-    output_files = extract_output_files(args.input) 
+def plot(input, exper, flip=False, integration=None):
+    output_files = extract_output_files(input)
     headers, visibilities = read_all_visibilities(output_files)
-    averaged_visibilities = average_visibilities(visibilities)
+    n_integrations = visibilities.shape[1]
 
-    cross_RR = averaged_visibilities[:, 1, :, 0]
-    cross_RL = averaged_visibilities[:, 1, :, 1]
-    cross_LR = averaged_visibilities[:, 1, :, 2]
-    cross_LL = averaged_visibilities[:, 1, :, 3]
+    print(visibilities.shape)
 
+    if integration is not None:
+        if integration < 0 or integration >= n_integrations:
+            raise ValueError(f'Integration {integration} out of range (0-{n_integrations-1})')
+        selected_visibilities = visibilities[:, integration, :, :, :]
+        title_suffix = f' | Integration {integration}'
+    else:
+        selected_visibilities = average_visibilities(visibilities)
+        title_suffix = ' | Averaged'
+
+    print(f'selected_visibilities.shape: {selected_visibilities.shape}')
+    cross_RR = selected_visibilities[:, 1, :, 0, 0]
+    cross_RL = selected_visibilities[:, 1, :, 0, 1]
+    cross_LR = selected_visibilities[:, 1, :, 1, 0]
+    cross_LL = selected_visibilities[:, 1, :, 1, 1]
     all_cross = [cross_RR, cross_RL, cross_LR, cross_LL]
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10)) 
 
     for i, cross in enumerate(all_cross):
         data = cross.flatten()
-        x = np.linspace(6643.69, 6739.68, len(data))
+        if flip:
+            data = np.flip(data)
+        x = np.linspace(FREQ_LOW, FREQ_HIGH, len(data))
         phase = np.angle(data, deg=True)
         ampl = np.abs(data)
 
@@ -87,13 +89,11 @@ if __name__ == '__main__':
         ax1.set_ylabel('Phase (deg)')
         ax1.set_xlabel('Frequency (MHz)')
         ax1.set_ylim(-200, 200)
-        ax1.set_xlim(6643.69, 6739.68)
         ax1.legend()
 
         ax2.plot(x, ampl, label=POLS[i], linewidth=1)
         ax2.set_ylabel('Amplitude')
         ax2.set_xlabel('Frequency (MHz)')
-        ax2.set_xlim(6643.69, 6739.68)
         ax2.legend()
 
         corr = np.fft.irfft(data)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         ax3.set_xlabel('Lag')
         ax3.legend()
 
-    plt.suptitle(f'{args.exper} | Amplitude + Phase + Lag')
+    plt.suptitle(f'{exper} | Phase + Amplitude + Lag{title_suffix}')
     plt.tight_layout()
     plt.show()
 
@@ -142,8 +142,17 @@ if __name__ == '__main__':
                 elif chan.pol1 == 1 and chan.pol2 == 1:
                     integrations_dict['LL'].append(data)
 
-    for pol in integrations_dict:
-        integrations_dict[pol] = np.mean(integrations_dict[pol], axis=0)
+    if integration is not None:
+        n_integrations = len(integrations_dict['RR'])
+        if integration < 0 or integration >= n_integrations:
+            raise ValueError(f'Integration {integration} out of range (0-{n_integrations-1})')
+        for pol in integrations_dict:
+            integrations_dict[pol] = integrations_dict[pol][integration]
+        sfxc_title_suffix = f' | Integration {integration}'
+    else:
+        for pol in integrations_dict:
+            integrations_dict[pol] = np.mean(integrations_dict[pol], axis=0)
+        sfxc_title_suffix = ' | Averaged'
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10))
     all_cross = [
@@ -155,7 +164,7 @@ if __name__ == '__main__':
 
     for i, cross in enumerate(all_cross):
         data = np.flip(cross.flatten())
-        x = np.linspace(6643.69, 6739.68, len(data))
+        x = np.linspace(FREQ_LOW, FREQ_HIGH, len(data))
         phase = np.angle(data, deg=True)
         ampl = np.abs(data)
 
@@ -163,13 +172,11 @@ if __name__ == '__main__':
         ax1.set_ylabel('Phase (deg)')
         ax1.set_xlabel('Frequency (MHz)')
         ax1.set_ylim(-200, 200)
-        ax1.set_xlim(6643.69, 6739.68)
         ax1.legend()
 
         ax2.plot(x, ampl, label=POLS[i], linewidth=1)
         ax2.set_ylabel('Amplitude')
         ax2.set_xlabel('Frequency (MHz)')
-        ax2.set_xlim(6643.69, 6739.68)
         ax2.legend()
 
         corr = np.fft.irfft(data)
@@ -185,6 +192,6 @@ if __name__ == '__main__':
         ax3.set_xlabel('Lag')
         ax3.legend()
 
-    plt.suptitle(f'{args.exper} | Amplitude + Phase + Lag (SFXCData)')
+    plt.suptitle(f'{exper} | Phase + Amplitude + Lag (SFXCData){sfxc_title_suffix}')
     plt.tight_layout()
     plt.show()

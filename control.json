@@ -4,5 +4,5 @@
     "scan-number": "No0002",
     "output-path": "/home/matyss/Work/RADIOBLOCKS/",
     "subbands": [3],
-    "integration-time": 2.0
+    "integration-time": 1.0
 }
