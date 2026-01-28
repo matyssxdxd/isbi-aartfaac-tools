@@ -69,10 +69,10 @@ def plot(input, exper, flip=False, integration=None):
         title_suffix = ' | Averaged'
 
     print(f'selected_visibilities.shape: {selected_visibilities.shape}')
-    cross_RR = selected_visibilities[:, 1, :, 0, 0]
-    cross_RL = selected_visibilities[:, 1, :, 0, 1]
-    cross_LR = selected_visibilities[:, 1, :, 1, 0]
-    cross_LL = selected_visibilities[:, 1, :, 1, 1]
+    cross_RR = selected_visibilities[:, 1, :, 0]
+    cross_RL = selected_visibilities[:, 1, :, 1]
+    cross_LR = selected_visibilities[:, 1, :, 2]
+    cross_LL = selected_visibilities[:, 1, :, 3]
     all_cross = [cross_RR, cross_RL, cross_LR, cross_LL]
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10)) 

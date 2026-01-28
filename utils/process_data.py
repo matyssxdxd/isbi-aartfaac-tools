@@ -44,7 +44,7 @@ def read_visibility_file(visibility_path):
                 vis_dtype = np.complex64
                 nr_baselines = header.nr_receivers + \
                     int(header.nr_receivers * (header.nr_receivers - 1) / 2)
-                vis_shape = (nr_baselines, header.nr_channels, 2, 2)
+                vis_shape = (nr_baselines, header.nr_channels, header.nr_polarizations)
                 vis_zeros = np.zeros(vis_shape, vis_dtype)
                 
                 # Read visibilities
