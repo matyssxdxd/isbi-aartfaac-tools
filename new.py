@@ -5,6 +5,7 @@ import numpy as np
 import argparse
 import glob
 import os
+import re
 
 from utils.process_data import read_visibility_file
 
@@ -30,13 +31,27 @@ def extract_output_files(input_paths):
 
     return output_files
 
-def read_all_visibilities(output_files):
+def get_subband_number(filename):
+    """Extract subband number from filename like 'subband_3.out'."""
+    match = re.search(r'_(\d+)\.out$', filename)
+    if match:
+        return int(match.group(1))
+    return None
+
+def read_all_visibilities(output_files, flip_odd=False):
     all_headers = []
     all_visibilities = []
 
     for file in output_files:
         print(f'Reading: {file}')
         headers, visibilities = read_visibility_file(file)
+
+        if flip_odd:
+            subband_num = get_subband_number(file)
+            if subband_num is not None and subband_num % 2 == 1:
+                print(f' - Flipping data (odd subband {subband_num})')
+                visibilities = [np.flip(v, axis=1) for v in visibilities]
+
         all_headers.append(headers)
         all_visibilities.append(visibilities)
         print(f' - {len(headers)} integrations, shape: {visibilities[0].shape}')
@@ -52,69 +67,37 @@ def average_visibilities(visibilities):
 
     return np.array(averaged_visibilities)
 
-def plot(input, exper, flip=False, integration=None):
-    output_files = extract_output_files(input)
-    headers, visibilities = read_all_visibilities(output_files)
-    n_integrations = visibilities.shape[1]
+def calculate_residual_delay_from_phase(phase_deg, freq_mhz):
+    """
+    Calculate residual delay from phase slope.
+    
+    Parameters:
+    - phase_deg: phase in degrees
+    - freq_mhz: frequency in MHz
+    
+    Returns:
+    - residual delay in seconds
+    """
+    # Convert to radians and Hz
+    phase_rad = np.deg2rad(phase_deg)
+    freq_hz = freq_mhz * 1e6
+    
+    # Unwrap phase to handle wrapping
+    phase_unwrapped = np.unwrap(phase_rad)
+    
+    # Linear fit to get slope (dφ/dν)
+    coeffs = np.polyfit(freq_hz, phase_unwrapped, 1)
+    slope = coeffs[0]  # radians per Hz
+    
+    # Convert to delay: τ = slope / (2π)
+    residual_delay = slope / (2 * np.pi)
+    
+    return residual_delay, coeffs
 
-    print(visibilities.shape)
-
-    if integration is not None:
-        if integration < 0 or integration >= n_integrations:
-            raise ValueError(f'Integration {integration} out of range (0-{n_integrations-1})')
-        selected_visibilities = visibilities[:, integration, :, :, :]
-        title_suffix = f' | Integration {integration}'
-    else:
-        selected_visibilities = average_visibilities(visibilities)
-        title_suffix = ' | Averaged'
-
-    print(f'selected_visibilities.shape: {selected_visibilities.shape}')
-    cross_RR = selected_visibilities[:, 1, :, 0]
-    cross_RL = selected_visibilities[:, 1, :, 1]
-    cross_LR = selected_visibilities[:, 1, :, 2]
-    cross_LL = selected_visibilities[:, 1, :, 3]
-    all_cross = [cross_RR, cross_RL, cross_LR, cross_LL]
-
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10)) 
-
-    for i, cross in enumerate(all_cross):
-        data = cross.flatten()
-        if flip:
-            data = np.flip(data)
-        x = np.linspace(FREQ_LOW, FREQ_HIGH, len(data))
-        phase = np.angle(data, deg=True)
-        ampl = np.abs(data)
-
-        ax1.scatter(x, phase, label=POLS[i], s=6)
-        ax1.set_ylabel('Phase (deg)')
-        ax1.set_xlabel('Frequency (MHz)')
-        ax1.set_ylim(-200, 200)
-        ax1.legend()
-
-        ax2.plot(x, ampl, label=POLS[i], linewidth=1)
-        ax2.set_ylabel('Amplitude')
-        ax2.set_xlabel('Frequency (MHz)')
-        ax2.legend()
-
-        corr = np.fft.irfft(data)
-        corr = np.fft.fftshift(corr)
-        lags = np.arange(-len(corr) // 2, len(corr) // 2, + 1)[:len(corr)]
-        peak_idx = np.argmax(np.abs(corr))
-        lag_peak = lags[peak_idx]
-        print(lag_peak, POLS[i])
-
-        ax3.plot(lags, np.abs(corr), label=POLS[i], linewidth=1)
-        ax3.set_ylabel('Amplitude')
-        ax3.set_xlabel('Lag')
-        ax3.legend()
-
-    plt.suptitle(f'{exper} | Phase + Amplitude + Lag{title_suffix}')
-    plt.tight_layout()
-    plt.show()
-
+def plot_sfxc(path, exper='B023', integration=None, flip=False):
     from sfxcdata import SFXCData
 
-    sfxc = SFXCData('./corr_files/B023.cor_0002')
+    sfxc = SFXCData(path)
     sfxc.next_integration()
 
     vis = ('Ib', 'Ir')
@@ -163,7 +146,10 @@ def plot(input, exper, flip=False, integration=None):
     ]
 
     for i, cross in enumerate(all_cross):
-        data = np.flip(cross.flatten())
+        if flip:
+            data = np.flip(cross.flatten()[1:])
+        else:
+            data = cross.flatten()[1:]
         x = np.linspace(FREQ_LOW, FREQ_HIGH, len(data))
         phase = np.angle(data, deg=True)
         ampl = np.abs(data)
@@ -193,5 +179,65 @@ def plot(input, exper, flip=False, integration=None):
         ax3.legend()
 
     plt.suptitle(f'{exper} | Phase + Amplitude + Lag (SFXCData){sfxc_title_suffix}')
+    plt.tight_layout()
+    plt.show()
+
+
+def plot(input, exper, flip=False, integration=None):
+    output_files = extract_output_files(input)
+    headers, visibilities = read_all_visibilities(output_files, flip_odd=flip)
+    n_integrations = visibilities.shape[1]
+
+    print(visibilities.shape)
+
+    if integration is not None:
+        if integration < 0 or integration >= n_integrations:
+            raise ValueError(f'Integration {integration} out of range (0-{n_integrations-1})')
+        selected_visibilities = visibilities[:, integration, :, :, :]
+        title_suffix = f' | Integration {integration}'
+    else:
+        selected_visibilities = average_visibilities(visibilities)
+        title_suffix = ' | Averaged'
+
+    print(f'selected_visibilities.shape: {selected_visibilities.shape}')
+    cross_RR = selected_visibilities[:, 1, :, 0]
+    cross_RL = selected_visibilities[:, 1, :, 1]
+    cross_LR = selected_visibilities[:, 1, :, 2]
+    cross_LL = selected_visibilities[:, 1, :, 3]
+    all_cross = [cross_RR, cross_RL, cross_LR, cross_LL]
+
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10)) 
+
+    for i, cross in enumerate(all_cross):
+        data = cross.flatten()
+        x = np.linspace(FREQ_LOW, FREQ_HIGH, len(data))
+        phase = np.angle(data, deg=True)
+        print(calculate_residual_delay_from_phase(phase, x))
+        ampl = np.abs(data)
+
+        ax1.scatter(x, phase, label=POLS[i], s=6)
+        ax1.set_ylabel('Phase (deg)')
+        ax1.set_xlabel('Frequency (MHz)')
+        ax1.set_ylim(-200, 200)
+        ax1.legend()
+
+        ax2.plot(x, ampl, label=POLS[i], linewidth=1)
+        ax2.set_ylabel('Amplitude')
+        ax2.set_xlabel('Frequency (MHz)')
+        ax2.legend()
+
+        corr = np.fft.irfft(data)
+        corr = np.fft.fftshift(corr)
+        lags = np.arange(-len(corr) // 2, len(corr) // 2, + 1)[:len(corr)]
+        peak_idx = np.argmax(np.abs(corr))
+        lag_peak = lags[peak_idx]
+        print(lag_peak, POLS[i])
+
+        ax3.plot(lags, np.abs(corr), label=POLS[i], linewidth=1)
+        ax3.set_ylabel('Amplitude')
+        ax3.set_xlabel('Lag')
+        ax3.legend()
+
+    plt.suptitle(f'{exper} | Phase + Amplitude + Lag{title_suffix}')
     plt.tight_layout()
     plt.show()

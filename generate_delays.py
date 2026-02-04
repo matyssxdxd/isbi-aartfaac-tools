@@ -126,6 +126,7 @@ def geometric_delays(vex_file, scan_nr, n_integrations):
     )
 
     start_time = extract_start_time(vex_file, scan_nr)
+    print(start_time)
     duration_str = scan_info["station"][2].split()[0]
     duration_min = int(duration_str) / 60
 
@@ -138,7 +139,7 @@ def geometric_delays(vex_file, scan_nr, n_integrations):
     )
     ci.run_driver()
 
-    duration_sec = duration_min * 60
+    duration_sec = duration_min * 60 
 
     time_offsets = np.linspace(0, duration_sec, n_integrations)
     fine_time_grid = start_time + TimeDelta(time_offsets, format="sec")

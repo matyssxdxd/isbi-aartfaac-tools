@@ -10,3 +10,9 @@ plot_subbands.py
 *.ir
 pyrightconfig.json
 corr_files
+__pycache__
+.pyre
+*.del
+*cor*
+E011
+.ipynb_checkpoints
