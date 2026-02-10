@@ -2,7 +2,13 @@
     "experiment": "B023",
     "vex-path": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/data/B023.vex",
     "scan-number": "No0002",
-    "output-path": "/home/matyss/Work/RADIOBLOCKS/",
-    "subbands": [3],
-    "integration-time": 1.0
+    "output-path": "/home/matyss/Work/RADIOBLOCKS",
+    "subbands": [1, 2, 3, 4, 5, 6, 7, 8],
+    "reference-station": "Ib",
+    "integration-time": 2.0,
+    "nr-channels": 256,
+    "data-paths": {
+        "Ib": "/var/scratch/mpurvins/real_data/B023/No0002/b023_ib_no0002.m5a",
+        "Ir": "/var/scratch/mpurvins/real_data/B023/No0002/b023_ir_no0002.m5a"
+    }
 }
