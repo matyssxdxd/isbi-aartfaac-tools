@@ -74,8 +74,8 @@ def plot(input, exper, flip=False, integration=None):
     #         selected_visibilities[i] = np.flip(vis, axis=1)
     cross_RR = selected_visibilities[:, 1, :, 0].conj()
     cross_RL = selected_visibilities[:, 1, :, 1].conj()
-    cross_LR = selected_visibilities[:, 1, :, 2].conj()
     cross_LL = selected_visibilities[:, 1, :, 3].conj()
+    cross_LR = selected_visibilities[:, 1, :, 2].conj()
     all_cross = [cross_RR, cross_RL, cross_LR, cross_LL]
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10)) 
