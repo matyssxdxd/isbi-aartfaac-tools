@@ -97,7 +97,7 @@ def plot(input, exper, flip=False, integration=None):
         ax2.set_xlabel('Frequency (MHz)')
         ax2.legend()
 
-        corr = np.fft.irfft(data)
+        corr = np.fft.ifft(data)
         corr = np.fft.fftshift(corr)
         lags = np.arange(-len(corr) // 2, len(corr) // 2, + 1)[:len(corr)]
         peak_idx = np.argmax(np.abs(corr))
@@ -184,7 +184,7 @@ def plot_sfxc(path, exper, freqnr, sideband, integration=None):
         ax2.set_xlabel('Frequency (MHz)')
         ax2.legend()
 
-        corr = np.fft.irfft(data)
+        corr = np.fft.ifft(data)
         corr = np.fft.fftshift(corr)
         lags = np.arange(-len(corr) // 2, len(corr) // 2, + 1)[:len(corr)]
 

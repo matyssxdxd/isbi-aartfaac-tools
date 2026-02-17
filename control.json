@@ -8,7 +8,7 @@
     "integration-time": 2.0,
     "nr-channels": 256,
     "data-paths": {
-        "Ib": "/var/scratch/mpurvins/real_data/E011/No0002/e011_ib_no0002.m5a",
-        "Ir": "/var/scratch/mpurvins/real_data/E011/No0002/e011_ir_no0002.m5a"
+        "Ib": "/var/scratch/mpurvins/real_data/E011/No0003/e011_ib_no0003.m5a",
+        "Ir": "/var/scratch/mpurvins/real_data/E011/No0003/e011_ir_no0003.m5a"
     }
 }
