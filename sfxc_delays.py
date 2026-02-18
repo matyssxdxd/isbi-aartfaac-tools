@@ -30,14 +30,11 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
 
     clock_offsets = vex.clock_offsets()
     clock_rates = vex.clock_rates()
-    # clock_epoch = vex.clock_epoch()
+    # TODO: Redo the method, because in this case the clock epoch is the same for both stations.
+    #       Could it be that the clock epoch is different?
+    clock_epoch = vex.clock_epoch()['Ir']
     scan_start = vex.start_time(scan)
 
-    print(clock_offsets)
-    print(clock_rates)
-
-    # TODO: vextractor.clock_epoch()
-    clock_epoch = parse_vex_time('2024y121d03h51m15s')
     epoch_offset = (clock_epoch - scan_start).sec  # seconds from scan start to clock epoch
 
     delays = {}

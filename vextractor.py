@@ -167,13 +167,20 @@ class VEXtractor:
             offsets[station] = station_offsets["offset_sec"]
         return offsets
 
-    def clock_rates(self, scan_nr=None, at_time=None):
+    def clock_rates(self):
         """Extract per-station clock rates [sec/sec]."""
         rates = {}
         for station in self.vex["STATION"].keys():
             station_rates = self.clock_entry(station)[0]
             rates[station] = station_rates["rate_sec_per_sec"]
         return rates
+    
+    def clock_epoch(self):
+        epochs = {}
+        for station in self.vex["STATION"].keys():
+            station_epochs = self.clock_entry(station)[0]
+            epochs[station] = station_epochs["epoch"]
+        return epochs
 
     def center_frequencies(self):
         """Extract unique subband center frequencies in Hz from the VEX FREQ block.
