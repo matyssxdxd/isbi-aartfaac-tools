@@ -12,16 +12,10 @@ import os
 
 from vextractor import VEXtractor
 from generate_delays import geometric_delays, save_config
+from utils.helpers import parse_arguments
+from sfxc_delays import sfxc_delays
 
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description='Generate ISBI-AARTFAAC run cmd and configuration file'
-    )
-    parser.add_argument('control', help='Path to control JSON file')
-
-    return parser.parse_args()
-
+DEBUG = True
 
 def generate_run_cmd(config_path, nr_samples_per_channel, nr_channels, subbands, start_time,
                      runtime, sample_rate, subband_bandwidth, input_path, output_path):
@@ -54,7 +48,12 @@ def generate_run_cmd(config_path, nr_samples_per_channel, nr_channels, subbands,
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
+    description = 'Generate ISBI-AARTFAAC run cmd and configuration file'
+    arguments = {
+        'control': 'Path to control JSON file'
+    }
+
+    args = parse_arguments(description, arguments)
 
     with open(args.control) as f:
         ctrl_file = json.load(f)
@@ -78,7 +77,14 @@ if __name__ == "__main__":
     nr_samples_per_channel = int(sample_rate * integration_time) // (nr_channels * 2)
     nr_samples_per_channel = nr_samples_per_channel - (nr_samples_per_channel % 16)
 
-    g_delays, _ = geometric_delays(vex, scan_nr, n_integrations=n_integrations, reference_station=reference_station)
+    delay_type = ctrl_file['delay-type']
+
+    if delay_type == 'sfxc':
+        delay_paths = {station: delay_path for station, delay_path in ctrl_file['delay-paths'].items()}
+        delays = sfxc_delays(vex, delay_paths, scan_nr, n_integrations, reference_station)
+    else:
+        delays, _ = geometric_delays(vex, scan_nr, n_integrations=n_integrations, reference_station=reference_station)
+
 
     selected_indices = []
     for subband in subbands:
@@ -86,19 +92,29 @@ if __name__ == "__main__":
     center_frequencies = [center_frequencies[i - 1] for i in subbands]
     channel_mapping = [channel_mapping[i] for i in selected_indices]
 
-    full_output_path = f'{ctrl_file["output-path"]}/{ctrl_file["experiment"]}/{scan_nr}'
-    if not os.path.exists(full_output_path):
-        os.makedirs(full_output_path)
+    if not DEBUG:
+        full_output_path = f'{ctrl_file["output-path"]}/{ctrl_file["experiment"]}/{scan_nr}'
+        if not os.path.exists(full_output_path):
+            os.makedirs(full_output_path)
 
-    config_path = f'{full_output_path}/{scan_nr}.conf'
-    save_config(config_path, g_delays, center_frequencies, channel_mapping)
+        config_path = f'{full_output_path}/{scan_nr}.conf'
+    else:
+        full_output_path = './'
+        config_path = f'{full_output_path}/{scan_nr}.conf'
+
+    save_config(config_path, delays, center_frequencies, channel_mapping)
 
     start_time_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
     data_paths = ctrl_file['data-paths']
     other_stations = [s for s in data_paths if s != reference_station]
     input_path = ','.join([data_paths[reference_station]] + [data_paths[s] for s in other_stations])
 
-    output_path = ','.join(f'{full_output_path}/subband_{s}.out' for s in subbands)
+    if not DEBUG:
+        output_path = ','.join(f'{full_output_path}/subband_{s}.out' for s in subbands)
+    else:
+        full_output_path = f'{ctrl_file["output-path"]}/{ctrl_file["experiment"]}/{scan_nr}'
+        config_path = f'{full_output_path}/{scan_nr}.conf'
+        output_path = ','.join(f'{full_output_path}/subband_{s}.out' for s in subbands)
 
     run_cmd = generate_run_cmd(
         config_path=config_path,

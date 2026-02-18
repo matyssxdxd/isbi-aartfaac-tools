@@ -5,6 +5,7 @@ information from a VEX observation file.
 """
 
 import vex
+import numpy as np
 
 from astropy.time import Time, TimeDelta
 from astropy import coordinates as ac
@@ -39,6 +40,155 @@ class VEXtractor:
         freq_key = list(freq_block.keys())[0]
         self.freq_def = freq_block[freq_key]
 
+    @staticmethod
+    def _as_time(value):
+        if isinstance(value, Time):
+            return value
+        return Time(value)
+
+    @staticmethod
+    def _parse_seconds(value):
+        """Parse a VEX amount into seconds.
+
+        Accepts strings like '8.233 usec', '0.002 sec', or a bare number.
+        """
+        tokens = str(value).split()
+        number = float(tokens[0])
+        if len(tokens) == 1:
+            # Bare numbers are interpreted as seconds.
+            return number
+
+        unit = tokens[1].lower()
+        if unit in ("sec", "s", "second", "seconds"):
+            return number
+        if unit in ("msec", "ms"):
+            return number * 1e-3
+        if unit in ("usec", "us"):
+            return number * 1e-6
+        if unit in ("nsec", "ns"):
+            return number * 1e-9
+
+        raise ValueError(f"Unsupported time unit in VEX amount: {value}")
+
+    @classmethod
+    def _parse_rate_sec_per_sec(cls, value):
+        """Parse VEX clock rate with SFXC-compatible fallback.
+
+        SFXC logic:
+        - if units are present: parse as sec/sec amount
+        - if units are absent: historically interpret as usec/sec (x1e-6)
+        """
+        text = str(value).strip()
+        tokens = text.split()
+
+        if len(tokens) == 1:
+            return float(tokens[0]) * 1e-6
+
+        number = float(tokens[0])
+        unit = tokens[1].lower()
+        if unit in ("sec/sec", "s/s"):
+            return number
+        if unit in ("usec/sec", "us/sec", "microsec/sec"):
+            return number * 1e-6
+        if unit in ("nsec/sec", "ns/sec"):
+            return number * 1e-9
+
+        raise ValueError(f"Unsupported clock rate unit in VEX amount: {value}")
+
+    def _clock_entries_for_station(self, station):
+        """Return parsed clock_early entries for a station.
+
+        Each entry is a dict with keys: start, offset_sec, rate_sec_per_sec, epoch.
+        """
+        if station not in self.vex["STATION"]:
+            raise KeyError(f"Unknown station '{station}'")
+
+        clock_ref = self.vex["STATION"][station]["CLOCK"]
+        clock_block = self.vex["CLOCK"][clock_ref]
+
+        entries = clock_block.getall("clock_early")
+        if not entries:
+            raise ValueError(f"No clock_early entries for station '{station}' (CLOCK='{clock_ref}')")
+
+        parsed = []
+        for row in entries:
+            start = parse_vex_time(row[0])
+            offset_sec = self._parse_seconds(row[1])
+
+            rate_sec_per_sec = 0.0
+            epoch = start
+            if len(row) > 3:
+                epoch = parse_vex_time(row[2])
+                rate_sec_per_sec = self._parse_rate_sec_per_sec(row[3])
+
+            parsed.append(
+                {
+                    "start": start,
+                    "offset_sec": offset_sec,
+                    "rate_sec_per_sec": rate_sec_per_sec,
+                    "epoch": epoch,
+                }
+            )
+
+        parsed.sort(key=lambda x: x["start"].mjd)
+        return parsed
+
+    def clock_entry_at(self, station, at_time):
+        """Return the active clock_early entry for a station at a given time.
+
+        Matches SFXC selection: choose latest entry with entry.start <= at_time.
+        """
+        t = self._as_time(at_time)
+        entries = self._clock_entries_for_station(station)
+
+        selected = None
+        for entry in entries:
+            if t >= entry["start"]:
+                selected = entry
+
+        if selected is None:
+            raise ValueError(
+                f"No clock_early entry for station '{station}' valid at {t.isot}. "
+                "(all clock entries start later)"
+            )
+
+        return selected
+
+    def clock_delay(self, station, times):
+        """Compute SFXC-style station clock delay [seconds] at given times.
+
+        delay(t) = offset + (t - epoch) * rate
+        where offset/rate/epoch come from the active clock_early entry.
+
+        Args:
+            station: Station code from VEX STATION block.
+            times: astropy Time scalar or array.
+
+        Returns:
+            float or numpy.ndarray of delays in seconds.
+        """
+        t = self._as_time(times)
+
+        if np.isscalar(t.mjd):
+            entry = self.clock_entry_at(station, t)
+            return entry["offset_sec"] + (t - entry["epoch"]).sec * entry["rate_sec_per_sec"]
+
+        delays = np.empty(len(t), dtype=float)
+        for i, ti in enumerate(t):
+            entry = self.clock_entry_at(station, ti)
+            delays[i] = entry["offset_sec"] + (ti - entry["epoch"]).sec * entry["rate_sec_per_sec"]
+        return delays
+
+    def clock_model(self, station, at_time):
+        """Return active clock model parameters for a station at a given time."""
+        entry = self.clock_entry_at(station, at_time)
+        return {
+            "offset_sec": entry["offset_sec"],
+            "rate_sec_per_sec": entry["rate_sec_per_sec"],
+            "epoch": entry["epoch"],
+            "start": entry["start"],
+        }
+
     def duration(self, scan_nr):
         """Extract the scan duration in seconds from the VEX SCHED block."""
         scan_info = self.vex["SCHED"][scan_nr]
@@ -50,24 +200,45 @@ class VEXtractor:
         scan_info = self.vex["SCHED"][scan_nr]
         return parse_vex_time(scan_info["start"])
 
-    def clock_offsets(self):
-        """Extract clock early offsets in seconds for each station from the VEX CLOCK block."""
-        clock_block = self.vex['CLOCK']
-        clock_offsets = {}
-        for station in clock_block:
-            clock_early = clock_block[station].get('clock_early')
-            offset_usec = float(clock_early[1].split()[0])
-            clock_offsets[station] = offset_usec * 1e-6
-        return clock_offsets
+    def clock_offsets(self, scan_nr=None, at_time=None):
+        """Extract per-station clock offsets [seconds] at a chosen time.
 
-    def clock_rates(self):
-        """Extract clock drift rates for each station from the VEX CLOCK block."""
-        clock_block = self.vex['CLOCK']
-        clock_rates = {}
-        for station in clock_block:
-            clock_early = clock_block[station].get('clock_early')
-            clock_rates[station] = float(clock_early[3])
-        return clock_rates
+        Backward-compatible convenience wrapper.
+
+        Args:
+            scan_nr: Optional scan id used to define reference time.
+            at_time: Optional explicit astropy Time. If provided, overrides scan_nr.
+
+        Returns:
+            dict station -> offset_sec
+        """
+        if at_time is None:
+            if scan_nr is not None:
+                at_time = self.start_time(scan_nr)
+            else:
+                first_scan = list(self.vex["SCHED"].keys())[0]
+                at_time = self.start_time(first_scan)
+
+        offsets = {}
+        for station in self.vex["STATION"].keys():
+            entry = self.clock_entry_at(station, at_time)
+            offsets[station] = entry["offset_sec"]
+        return offsets
+
+    def clock_rates(self, scan_nr=None, at_time=None):
+        """Extract per-station clock rates [sec/sec] at a chosen time."""
+        if at_time is None:
+            if scan_nr is not None:
+                at_time = self.start_time(scan_nr)
+            else:
+                first_scan = list(self.vex["SCHED"].keys())[0]
+                at_time = self.start_time(first_scan)
+
+        rates = {}
+        for station in self.vex["STATION"].keys():
+            entry = self.clock_entry_at(station, at_time)
+            rates[station] = entry["rate_sec_per_sec"]
+        return rates
 
     def center_frequencies(self):
         """Extract unique subband center frequencies in Hz from the VEX FREQ block.

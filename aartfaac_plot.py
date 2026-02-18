@@ -253,8 +253,8 @@ def plot_sfxc_vs_mine(
 
 if __name__ == "__main__":
     plot_sfxc_vs_mine(
-        sfxc_corr_paths="./E011/E011.cor_0002",
-        my_data_paths="./data/186_TEST",
-        title="SFXC vs AARTFAAC | E011 No0002 subband 3",
-        sfxc_subbands=[3],
+        sfxc_corr_paths="./E011/E011.cor_0001",
+        my_data_paths="./data/193_TEST/",
+        title="SFXC vs AARTFAAC | E011 No0001",
+        sfxc_subbands=[1, 2],
     )

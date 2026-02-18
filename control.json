@@ -1,14 +1,19 @@
 {
     "experiment": "E011",
     "vex-path": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011.vix",
-    "scan-number": "No0002",
-    "output-path": "/home/matyss/Work/RADIOBLOCKS",
-    "subbands": [3],
+    "scan-number": "No0001",
+    "output-path": "/var/scratch/mpurvins/",
+    "subbands": [1, 2, 3, 4, 5, 6, 7, 8],
     "reference-station": "Ib",
     "integration-time": 2.0,
     "nr-channels": 256,
     "data-paths": {
-        "Ib": "/var/scratch/mpurvins/real_data/E011/No0003/e011_ib_no0003.m5a",
-        "Ir": "/var/scratch/mpurvins/real_data/E011/No0003/e011_ir_no0003.m5a"
+        "Ib": "/var/scratch/mpurvins/E011/No0001/e011_ib_no0001.m5a",
+        "Ir": "/var/scratch/mpurvins/E011/No0001/e011_ir_no0001.m5a"
+    },
+    "delay-type": "sfxc",
+    "delay-paths": {
+      "Ib": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011_Ib.del",
+      "Ir": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011_Ir.del"
     }
 }
