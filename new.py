@@ -16,6 +16,7 @@ FREQ_HIGH = 6740.86 + 16.0
 
 POLS = ['RR', 'RL', 'LR', 'LL']
 
+
 def extract_output_files(input_paths):
     output_files = []
 
@@ -30,18 +31,20 @@ def extract_output_files(input_paths):
 
     return output_files
 
-def read_all_visibilities(output_files):
+
+def read_all_visibilities(output_files, normalize=True):
     all_headers = []
     all_visibilities = []
 
     for i, file in enumerate(output_files):
         print(f'Reading: {file}')
-        headers, visibilities = read_visibility_file(file)
+        headers, visibilities = read_visibility_file(file, normalize=normalize)
         all_headers.append(headers)
         all_visibilities.append(visibilities)
         print(f' - {len(headers)} integrations, shape: {visibilities[0].shape}')
 
     return np.array(all_headers), np.array(all_visibilities)
+
 
 # TODO: Might be better to implement different types of averaging
 def average_visibilities(visibilities):
@@ -52,12 +55,11 @@ def average_visibilities(visibilities):
 
     return np.array(averaged_visibilities)
 
-def plot(input, exper, flip=False, integration=None):
-    output_files = extract_output_files(input)
-    headers, visibilities = read_all_visibilities(output_files)
-    n_integrations = visibilities.shape[1]
 
-    # print(visibilities.shape)
+def plot(input, exper, flip=False, integration=None, normalize=True):
+    output_files = extract_output_files(input)
+    headers, visibilities = read_all_visibilities(output_files, normalize=normalize)
+    n_integrations = visibilities.shape[1]
 
     if integration is not None:
         if integration < 0 or integration >= n_integrations:
@@ -68,17 +70,16 @@ def plot(input, exper, flip=False, integration=None):
         selected_visibilities = average_visibilities(visibilities)
         title_suffix = ' | Averaged'
 
-    # print(f'selected_visibilities.shape: {selected_visibilities.shape}')
-    # for i, vis in enumerate(selected_visibilities):
-    #     if (i + 1) % 2 != 0:
-    #         selected_visibilities[i] = np.flip(vis, axis=1)
-    cross_RR = selected_visibilities[:, 1, :, 0].conj()
-    cross_RL = selected_visibilities[:, 1, :, 1].conj()
-    cross_LL = selected_visibilities[:, 1, :, 3].conj()
-    cross_LR = selected_visibilities[:, 1, :, 2].conj()
+    if normalize:
+        title_suffix += ' | Normalized'
+
+    cross_RR = selected_visibilities[:, BL_CROSS, :, 0]
+    cross_RL = selected_visibilities[:, BL_CROSS, :, 1]
+    cross_LL = selected_visibilities[:, BL_CROSS, :, 3]
+    cross_LR = selected_visibilities[:, BL_CROSS, :, 2]
     all_cross = [cross_RR, cross_RL, cross_LR, cross_LL]
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10)) 
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10))
 
     for i, cross in enumerate(all_cross):
         data = cross.flatten()
@@ -112,6 +113,7 @@ def plot(input, exper, flip=False, integration=None):
     plt.suptitle(f'{exper} | Phase + Amplitude + Lag{title_suffix}')
     plt.tight_layout()
     plt.show()
+
 
 def plot_sfxc(path, exper, freqnr, sideband, integration=None):
     from sfxcdata import SFXCData

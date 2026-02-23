@@ -85,4 +85,11 @@ def geometric_delays(vextractor, scan_nr, n_integrations, reference_station="Ib"
     for station in station_list:
         g_delays[station] = np.array(g_delays[station])
 
+# delay(t) = geometric_delay(t) + clock_offset + clock_rate * t
+    clock_offset = -7.527526257807031e-06
+    clock_rate = -4.2274788853206365e-13  # s/s
+
+    g_delays["Ib"] = g_delays["Ib"] + clock_offset + clock_rate * time_offsets
+
+
     return g_delays, time_offsets

@@ -25,7 +25,7 @@ def read_delays(file, scan_name):
 
 
 def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
-    duration = vex.duration(scan)
+    duration = vex.duration(scan) + 1
     time_offsets = np.linspace(0, duration, n_integrations)
 
     clock_offsets = vex.clock_offsets()
@@ -36,19 +36,20 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
     scan_start = vex.start_time(scan)
 
     epoch_offset = (clock_epoch - scan_start).sec  # seconds from scan start to clock epoch
-
     delays = {}
 
     # Read per-station delay tables
     for station, delay_file in delay_paths.items():
         sod, delay = read_delays(delay_file, scan)
+
         delays[station] = {
             'sod': sod,
             'del': delay,
         }
 
+
     # Target times in SOD (sec_of_day) for interpolation
-    scan_start_sod = (scan_start.mjd % 1) * 86400.0
+    scan_start_sod = float(round((scan_start.mjd % 1) * 86400.0))
     target_sod = scan_start_sod + time_offsets
 
     # Interpolate per station
@@ -60,6 +61,7 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
     # Add clock model: offset + rate * (time - clock_epoch)
     for i, t_offset in enumerate(time_offsets):
         dt = t_offset - epoch_offset
+        # print(dt, t_offset, epoch_offset)
         for station, d in delays.items():
             d['interp'][i] += clock_offsets[station] + dt * clock_rates[station]
 
@@ -70,6 +72,8 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
 
     # Insert reference station first
     ordered[reference_station] = delays[reference_station]['interp']
+
+    print(ordered)
 
     # Insert remaining stations
     for station, d in delays.items():

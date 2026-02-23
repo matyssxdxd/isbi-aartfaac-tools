@@ -36,7 +36,7 @@ def generate_run_cmd(config_path, nr_samples_per_channel, nr_channels, subbands,
     Returns:
         The correlator run command as a string.
     """
-    run_cmd = (f'TZ=UTC ISBI/ISBI --configFile {config_path} -n2 '
+    run_cmd = (f'TZ=UTC ISBI/ISBI --configFile {config_path} -p1 -n2 '
                f'-t{nr_samples_per_channel} -c{nr_channels} -C{nr_channels - 1} '
                f'-b16 -s{len(subbands)} -m15 '
                f'-D "{start_time}" -r{runtime} '
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     center_frequencies = vex.center_frequencies()
     channel_mapping = vex.channel_mapping()
 
-    n_integrations = int(duration / integration_time) + 1
+    n_integrations = int(duration / integration_time) + 2
     nr_samples_per_channel = int(sample_rate * integration_time) // (nr_channels * 2)
     nr_samples_per_channel = nr_samples_per_channel - (nr_samples_per_channel % 16)
 

@@ -1,15 +1,15 @@
 {
     "experiment": "E011",
     "vex-path": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011.vix",
-    "scan-number": "No0001",
+    "scan-number": "No0002",
     "output-path": "/var/scratch/mpurvins/",
-    "subbands": [1, 2, 3, 4, 5, 6, 7, 8],
+    "subbands": [3],
     "reference-station": "Ib",
     "integration-time": 2.0,
     "nr-channels": 256,
     "data-paths": {
-        "Ib": "/var/scratch/mpurvins/E011/No0001/e011_ib_no0001.m5a",
-        "Ir": "/var/scratch/mpurvins/E011/No0001/e011_ir_no0001.m5a"
+        "Ib": "/var/scratch/mpurvins/E011/No0002/e011_ib_no0002.m5a",
+        "Ir": "/var/scratch/mpurvins/E011/No0002/e011_ir_no0002.m5a"
     },
     "delay-type": "sfxc",
     "delay-paths": {

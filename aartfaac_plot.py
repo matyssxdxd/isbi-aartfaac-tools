@@ -243,7 +243,7 @@ def plot_sfxc_vs_mine(
 
     fig, axs = plt.subplots(3, 2, figsize=(16, 10))
     _plot_dataset(axs[0, 0], axs[1, 0], axs[2, 0], sfxc_pol_vectors, "SFXC")
-    _plot_dataset(axs[0, 1], axs[1, 1], axs[2, 1], my_pol_vectors, "Mine")
+    _plot_dataset(axs[0, 1], axs[1, 1], axs[2, 1], my_pol_vectors, "ISBI-AARTFAAC")
 
     integration_label = f"Integration {integration}" if integration is not None else "Averaged"
     fig.suptitle(f"{title} | {integration_label}")
@@ -253,8 +253,8 @@ def plot_sfxc_vs_mine(
 
 if __name__ == "__main__":
     plot_sfxc_vs_mine(
-        sfxc_corr_paths="./E011/E011.cor_0001",
-        my_data_paths="./data/193_TEST/",
-        title="SFXC vs AARTFAAC | E011 No0001",
-        sfxc_subbands=[1, 2],
+        sfxc_corr_paths="./E011/E011.cor_0002",
+        my_data_paths="./data/254_TEST/",
+        title="SFXC vs AARTFAAC | E011 No0002",
+        sfxc_subbands=[3],
     )
