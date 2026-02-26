@@ -34,6 +34,7 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
     #       Could it be that the clock epoch is different?
     clock_epoch = vex.clock_epoch()['Ir']
     scan_start = vex.start_time(scan)
+    print(time_offsets)
 
     epoch_offset = (clock_epoch - scan_start).sec  # seconds from scan start to clock epoch
     delays = {}
