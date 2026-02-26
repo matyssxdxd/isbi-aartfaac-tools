@@ -79,7 +79,7 @@ if __name__ == "__main__":
     center_frequencies = vex.center_frequencies()
     channel_mapping = vex.channel_mapping()
 
-    n_integrations = int(duration / integration_time) + 1
+    n_integrations = int(duration / integration_time)
     nr_samples_per_channel = int(sample_rate * integration_time) // (nr_channels * 2)
 
     delay_type = ctrl_file['delay-type']
@@ -89,6 +89,8 @@ if __name__ == "__main__":
         delays = sfxc_delays(vex, delay_paths, scan_nr, n_integrations, reference_station)
     else:
         delays, _ = geometric_delays(vex, scan_nr, n_integrations=n_integrations, reference_station=reference_station)
+
+    print(len(delays['Ib']))
 
     selected_indices = []
     for subband in subbands:
