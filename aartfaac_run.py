@@ -6,6 +6,12 @@ parameters, compute geometric delays, and produce the shell command to run
 the ISBI-AARTFAAC correlator.
 """
 
+# TODO: I set duration + 2 to get enough delay values for the last filter invokation.
+# What I mean by that is that we need to know the delay rate for last filter invokation,
+# and to know that we need the current dedlay and the next one.
+# This is just a test and might not cause any issues, but I wanted to add this comment
+# not forget removing it.
+
 import argparse
 import json
 import os
@@ -39,7 +45,7 @@ def generate_run_cmd(config_path, nr_samples_per_channel, nr_channels, subbands,
     run_cmd = (f'TZ=UTC ISBI/ISBI --configFile {config_path} -p1 -n2 '
                f'-t{nr_samples_per_channel} -c{nr_channels} -C{nr_channels - 1} '
                f'-b16 -s{len(subbands)} -m15 '
-               f'-D "{start_time}" -r{runtime} '
+               f'-D "{start_time}" -r{runtime - 2} '
                f'-g0 -q1 -R0 -B0 '
                f'-f{sample_rate} --subbandBandwidth {subband_bandwidth} '
                f'-i {input_path} -o {output_path}')
@@ -66,16 +72,15 @@ if __name__ == "__main__":
     nr_channels = ctrl_file['nr-channels']
     reference_station = ctrl_file['reference-station']
 
-    duration = vex.duration(scan_nr)
+    duration = vex.duration(scan_nr) + 2
     start_time = vex.start_time(scan_nr)
     sample_rate = int(vex.sample_rate())
     subband_bandwidth = vex.subband_bandwidth()
     center_frequencies = vex.center_frequencies()
     channel_mapping = vex.channel_mapping()
 
-    n_integrations = int(duration / integration_time) + 2
+    n_integrations = int(duration / integration_time) + 1
     nr_samples_per_channel = int(sample_rate * integration_time) // (nr_channels * 2)
-    nr_samples_per_channel = nr_samples_per_channel - (nr_samples_per_channel % 16)
 
     delay_type = ctrl_file['delay-type']
 
@@ -84,7 +89,6 @@ if __name__ == "__main__":
         delays = sfxc_delays(vex, delay_paths, scan_nr, n_integrations, reference_station)
     else:
         delays, _ = geometric_delays(vex, scan_nr, n_integrations=n_integrations, reference_station=reference_station)
-
 
     selected_indices = []
     for subband in subbands:

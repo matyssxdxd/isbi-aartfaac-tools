@@ -25,7 +25,7 @@ def read_delays(file, scan_name):
 
 
 def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
-    duration = vex.duration(scan) + 1
+    duration = vex.duration(scan)
     time_offsets = np.linspace(0, duration, n_integrations)
 
     clock_offsets = vex.clock_offsets()
@@ -61,7 +61,6 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
     # Add clock model: offset + rate * (time - clock_epoch)
     for i, t_offset in enumerate(time_offsets):
         dt = t_offset - epoch_offset
-        # print(dt, t_offset, epoch_offset)
         for station, d in delays.items():
             d['interp'][i] += clock_offsets[station] + dt * clock_rates[station]
 
@@ -72,8 +71,6 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
 
     # Insert reference station first
     ordered[reference_station] = delays[reference_station]['interp']
-
-    print(ordered)
 
     # Insert remaining stations
     for station, d in delays.items():
