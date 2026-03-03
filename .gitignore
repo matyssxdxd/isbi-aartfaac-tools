@@ -15,5 +15,6 @@ __pycache__
 *.del
 *cor*
 E011
+I002
 .ipynb_checkpoints
 vextractor.new.py

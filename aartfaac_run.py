@@ -6,6 +6,7 @@ parameters, compute geometric delays, and produce the shell command to run
 the ISBI-AARTFAAC correlator.
 """
 
+import numpy as np
 import argparse
 import json
 import os
@@ -73,14 +74,17 @@ if __name__ == "__main__":
     center_frequencies = vex.center_frequencies()
     channel_mapping = vex.channel_mapping()
 
-    n_integrations = int(duration / integration_time) + 1
-    nr_samples_per_channel = int(sample_rate * integration_time) // (nr_channels * 2)
+    nr_samples_per_channel = (int(sample_rate * integration_time) // (nr_channels * 2)) 
+    nr_samples_per_channel -= nr_samples_per_channel % 8
+    n_integrations = np.ceil(duration / ((nr_samples_per_channel * nr_channels * 2) / sample_rate)) + 1
+
+    print(n_integrations)
 
     delay_type = ctrl_file['delay-type']
 
     if delay_type == 'sfxc':
         delay_paths = {station: delay_path for station, delay_path in ctrl_file['delay-paths'].items()}
-        delays = sfxc_delays(vex, delay_paths, scan_nr, n_integrations, reference_station)
+        delays = sfxc_delays(vex, delay_paths, scan_nr, n_integrations, integration_time, reference_station)
     else:
         delays, _ = geometric_delays(vex, scan_nr, n_integrations=n_integrations, reference_station=reference_station)
 

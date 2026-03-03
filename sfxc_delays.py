@@ -24,9 +24,9 @@ def read_delays(file, scan_name):
     return np.array(sec_of_day), np.array(delays)
 
 
-def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
+def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, reference_station):
     duration = vex.duration(scan)
-    time_offsets = np.linspace(0, duration, n_integrations)
+    time_offsets = np.arange(0, n_integrations) * integration_time 
 
     clock_offsets = vex.clock_offsets()
     clock_rates = vex.clock_rates()
@@ -34,7 +34,6 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
     #       Could it be that the clock epoch is different?
     clock_epoch = vex.clock_epoch()['Ir']
     scan_start = vex.start_time(scan)
-    print(time_offsets)
 
     epoch_offset = (clock_epoch - scan_start).sec  # seconds from scan start to clock epoch
     delays = {}
@@ -48,7 +47,6 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
             'del': delay,
         }
 
-
     # Target times in SOD (sec_of_day) for interpolation
     scan_start_sod = float(round((scan_start.mjd % 1) * 86400.0))
     target_sod = scan_start_sod + time_offsets
@@ -57,7 +55,7 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
     for station, d in delays.items():
         sod = d['sod']
         delay = d['del']
-        d['interp'] = Akima1DInterpolator(sod, delay)(target_sod)
+        d['interp'] = Akima1DInterpolator(sod, delay, extrapolate=True)(target_sod)
 
     # Add clock model: offset + rate * (time - clock_epoch)
     for i, t_offset in enumerate(time_offsets):
@@ -73,6 +71,7 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, reference_station):
     # Insert reference station first
     ordered[reference_station] = delays[reference_station]['interp']
 
+    print(ordered['Ib'])
     # Insert remaining stations
     for station, d in delays.items():
         if station != reference_station:

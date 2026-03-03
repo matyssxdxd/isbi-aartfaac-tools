@@ -126,6 +126,8 @@ def _build_sfxc_pol_vectors(
             else:
                 vec = np.conj(vec)
 
+            vec = vec[1:-1]
+
             chunks.append(np.asarray(vec, dtype=np.complex64))
 
         if chunks:
@@ -144,7 +146,7 @@ def _build_my_pol_vectors(my_data_paths, integration=None):
     pol_chunks = {pol: [] for pol in POLS}
 
     for file in files:
-        _, visibilities = read_visibility_file(file)
+        _, visibilities = read_visibility_file(file, normalize=True)
         if not visibilities:
             continue
 
@@ -163,10 +165,10 @@ def _build_my_pol_vectors(my_data_paths, integration=None):
 
         # Baseline index 1 is the cross-correlation baseline for 2 stations.
         cross = selected[1]
-        pol_chunks["RR"].append(np.asarray(cross[:, 0]).conj())
-        pol_chunks["RL"].append(np.asarray(cross[:, 1]).conj())
-        pol_chunks["LR"].append(np.asarray(cross[:, 2]).conj())
-        pol_chunks["LL"].append(np.asarray(cross[:, 3]).conj())
+        pol_chunks["RR"].append(np.asarray(cross[:, 0]))
+        pol_chunks["RL"].append(np.asarray(cross[:, 1]))
+        pol_chunks["LR"].append(np.asarray(cross[:, 2]))
+        pol_chunks["LL"].append(np.asarray(cross[:, 3]))
 
     pol_vectors = {}
     for pol in POLS:
@@ -210,6 +212,30 @@ def _plot_dataset(ax_phase, ax_amp, ax_lag, pol_vectors, title):
     ax_lag.set_xlabel("Lag")
     ax_lag.legend()
 
+def _plot_phase_diff(ax_phase, pol_vectors_sfxc, pol_vectors_mine, title):
+    for pol in POLS:
+        data_sfxc = pol_vectors_sfxc[pol]
+        data_mine = pol_vectors_mine[pol]
+
+        x = np.arange(data_mine.size)
+        phase = np.angle(data_sfxc * np.conj(data_mine), deg=True)
+        ax_phase.scatter(x, phase, label=pol, s=5)
+
+
+    ax_phase.set_title(title)
+    ax_phase.set_ylabel("Phase (deg)")
+    ax_phase.set_ylim(-200, 200)
+    ax_phase.set_xlabel("Channel index")
+    ax_phase.legend()
+
+def _save_pol_vectors_to_text(pol_vectors, output_path):
+    with open(output_path, "w", encoding="utf-8") as file:
+        for pol in POLS:
+            file.write(f"{pol}:\n")
+            for sample in pol_vectors[pol]:
+                file.write(f"{sample.real:.8e} {sample.imag:.8e}\n")
+            file.write("\n")
+
 
 def plot_sfxc_vs_mine(
     sfxc_corr_paths,
@@ -218,6 +244,8 @@ def plot_sfxc_vs_mine(
     sfxc_subbands,
     baseline=("Ib", "Ir"),
     integration=None,
+    sfxc_text_output="sfxc_data_E011_No0017.txt",
+    my_text_output="aartfaac_data_E011_No0017.txt",
 ):
     """Plot SFXC data (left) and your data (right) side by side.
 
@@ -232,6 +260,8 @@ def plot_sfxc_vs_mine(
             1 -> (0,0), 2 -> (0,1), 3 -> (1,0), 4 -> (1,1), ...
         baseline: Baseline tuple in SFXC data.
         integration: If set, use this integration index. If None, average all.
+        sfxc_text_output: Output text file for SFXC polarization data.
+        my_text_output: Output text file for ISBI-AARTFAAC polarization data.
     """
     sfxc_pol_vectors = _build_sfxc_pol_vectors(
         sfxc_corr_paths=sfxc_corr_paths,
@@ -240,7 +270,11 @@ def plot_sfxc_vs_mine(
         integration=integration,
     )
     my_pol_vectors = _build_my_pol_vectors(my_data_paths=my_data_paths, integration=integration)
+    # _save_pol_vectors_to_text(sfxc_pol_vectors, sfxc_text_output)
+    # _save_pol_vectors_to_text(my_pol_vectors, my_text_output)
 
+    fig, axs = plt.subplots(1, 1, figsize=(16, 10))
+    _plot_phase_diff(axs, sfxc_pol_vectors, my_pol_vectors, "SFXC vs AARTFAAC phase")
     fig, axs = plt.subplots(3, 2, figsize=(16, 10))
     _plot_dataset(axs[0, 0], axs[1, 0], axs[2, 0], sfxc_pol_vectors, "SFXC")
     _plot_dataset(axs[0, 1], axs[1, 1], axs[2, 1], my_pol_vectors, "ISBI-AARTFAAC")
@@ -253,8 +287,8 @@ def plot_sfxc_vs_mine(
 
 if __name__ == "__main__":
     plot_sfxc_vs_mine(
-        sfxc_corr_paths="./E011/E011.cor_0002",
-        my_data_paths="./data/281_TEST/",
-        title="SFXC vs AARTFAAC | E011 No0002",
-        sfxc_subbands=[3],
+        sfxc_corr_paths="./I002/I002.cor_0001",
+        my_data_paths="./results/I002_No0001/2_TEST/",
+        title="SFXC vs AARTFAAC | I002 No0001 | 2 sec integration",
+        sfxc_subbands=[3]
     )

@@ -59,7 +59,7 @@ def geometric_delays(vextractor, scan_nr, n_integrations, reference_station="Ib"
     source_coords = vextractor.source_coords(scan_nr)
 
     start_time = vextractor.start_time(scan_nr)
-    duration_sec = vextractor.duration(scan_nr) + 2
+    duration_sec = vextractor.duration(scan_nr)
     duration_min = duration_sec / 60
 
     ci = Calc(
