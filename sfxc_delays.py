@@ -35,7 +35,8 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
     clock_epoch = vex.clock_epoch()['Ir']
     scan_start = vex.start_time(scan)
 
-    epoch_offset = (clock_epoch - scan_start).sec  # seconds from scan start to clock epoch
+
+    epoch_offset = round((clock_epoch - scan_start).sec)  # seconds from scan start to clock epoch
     delays = {}
 
     # Read per-station delay tables
@@ -58,8 +59,9 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
         d['interp'] = Akima1DInterpolator(sod, delay, extrapolate=True)(target_sod)
 
     # Add clock model: offset + rate * (time - clock_epoch)
-    for i, t_offset in enumerate(time_offsets):
-        dt = t_offset - epoch_offset
+    test = np.arange(-180, 1, 2)
+    for i, t_offset in enumerate(test):
+        dt = t_offset
         for station, d in delays.items():
             d['interp'][i] += clock_offsets[station] + dt * clock_rates[station]
 
@@ -71,7 +73,6 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
     # Insert reference station first
     ordered[reference_station] = delays[reference_station]['interp']
 
-    print(ordered['Ib'])
     # Insert remaining stations
     for station, d in delays.items():
         if station != reference_station:

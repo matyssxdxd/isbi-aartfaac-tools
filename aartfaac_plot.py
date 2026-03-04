@@ -165,10 +165,10 @@ def _build_my_pol_vectors(my_data_paths, integration=None):
 
         # Baseline index 1 is the cross-correlation baseline for 2 stations.
         cross = selected[1]
-        pol_chunks["RR"].append(np.asarray(cross[:, 0]))
-        pol_chunks["RL"].append(np.asarray(cross[:, 1]))
-        pol_chunks["LR"].append(np.asarray(cross[:, 2]))
-        pol_chunks["LL"].append(np.asarray(cross[:, 3]))
+        pol_chunks["RR"].append(np.asarray(cross[:, 0].conj()))
+        pol_chunks["RL"].append(np.asarray(cross[:, 1].conj()))
+        pol_chunks["LR"].append(np.asarray(cross[:, 2].conj()))
+        pol_chunks["LL"].append(np.asarray(cross[:, 3].conj()))
 
     pol_vectors = {}
     for pol in POLS:
@@ -287,8 +287,8 @@ def plot_sfxc_vs_mine(
 
 if __name__ == "__main__":
     plot_sfxc_vs_mine(
-        sfxc_corr_paths="./I002/I002.cor_0001",
-        my_data_paths="./results/I002_No0001/2_TEST/",
-        title="SFXC vs AARTFAAC | I002 No0001 | 2 sec integration",
+        sfxc_corr_paths="./E011/E011.cor_0002",
+        my_data_paths="./results/E011_No0002/47_TEST/",
+        title="SFXC vs AARTFAAC | E011 No0002 | 2 sec integration",
         sfxc_subbands=[3]
     )
