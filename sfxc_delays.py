@@ -5,6 +5,7 @@ from generate_delays import geometric_delays, save_config
 from utils.delay_file_reader import DelayFileReader
 from utils.helpers import parse_arguments
 from scipy.interpolate import Akima1DInterpolator
+import astropy.units as u
 
 def read_delays(file, scan_name):
     reader = DelayFileReader(file)
@@ -26,7 +27,7 @@ def read_delays(file, scan_name):
 
 def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, reference_station):
     duration = vex.duration(scan)
-    time_offsets = np.arange(0, n_integrations) * integration_time 
+    time_offsets = np.arange(0, n_integrations) * integration_time
 
     clock_offsets = vex.clock_offsets()
     clock_rates = vex.clock_rates()
@@ -35,8 +36,7 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
     clock_epoch = vex.clock_epoch()['Ir']
     scan_start = vex.start_time(scan)
 
-
-    epoch_offset = round((clock_epoch - scan_start).sec)  # seconds from scan start to clock epoch
+    epoch_offset = (clock_epoch - scan_start).to_value('sec')
     delays = {}
 
     # Read per-station delay tables
@@ -49,7 +49,7 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
         }
 
     # Target times in SOD (sec_of_day) for interpolation
-    scan_start_sod = float(round((scan_start.mjd % 1) * 86400.0))
+    scan_start_sod = float((scan_start.mjd % 1) * 86400.0)
     target_sod = scan_start_sod + time_offsets
 
     # Interpolate per station
@@ -58,12 +58,16 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
         delay = d['del']
         d['interp'] = Akima1DInterpolator(sod, delay, extrapolate=True)(target_sod)
 
-    # Add clock model: offset + rate * (time - clock_epoch)
-    test = np.arange(-180, 1, 2)
-    for i, t_offset in enumerate(test):
-        dt = t_offset
-        for station, d in delays.items():
-            d['interp'][i] += clock_offsets[station] + dt * clock_rates[station]
+    # Absolute times for each integration (astropy Time array)
+    t_abs = scan_start + time_offsets * u.s
+
+    for station, d in delays.items():
+        # per-station clock epoch (even if they happen to be equal)
+        ce = vex.clock_epoch()[station]
+        # seconds since that station's clock epoch
+        sec_clock = (t_abs - ce).to_value(u.s)  # float array
+        # add clock drift in seconds
+        d['interp'] = d['interp'] + clock_offsets[station] + sec_clock * clock_rates[station]
 
     ordered = {}
 

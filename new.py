@@ -73,10 +73,10 @@ def plot(input, exper, flip=False, integration=None, normalize=True):
     if normalize:
         title_suffix += ' | Normalized'
 
-    cross_RR = selected_visibilities[:, BL_CROSS, :, 0]
-    cross_RL = selected_visibilities[:, BL_CROSS, :, 1]
-    cross_LL = selected_visibilities[:, BL_CROSS, :, 3]
-    cross_LR = selected_visibilities[:, BL_CROSS, :, 2]
+    cross_RR = selected_visibilities[:, BL_CROSS, :, 0].conj()
+    cross_RL = selected_visibilities[:, BL_CROSS, :, 1].conj()
+    cross_LL = selected_visibilities[:, BL_CROSS, :, 3].conj()
+    cross_LR = selected_visibilities[:, BL_CROSS, :, 2].conj()
     all_cross = [cross_RR, cross_RL, cross_LR, cross_LL]
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(12, 10))
@@ -202,3 +202,8 @@ def plot_sfxc(path, exper, freqnr, sideband, integration=None):
     plt.suptitle(f'{exper} | Phase + Amplitude + Lag (SFXCData){sfxc_title_suffix}')
     plt.tight_layout()
     plt.show()
+
+
+if __name__ == '__main__':
+    plot(['./results/E011_No0002/63_TEST'], 'E011 No0001', flip=False, integration=None, normalize=True)
+
