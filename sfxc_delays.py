@@ -7,6 +7,7 @@ from utils.helpers import parse_arguments
 from scipy.interpolate import Akima1DInterpolator
 import astropy.units as u
 
+
 def read_delays(file, scan_name):
     reader = DelayFileReader(file)
     reader.read_file()
@@ -31,21 +32,20 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
 
     clock_offsets = vex.clock_offsets()
     clock_rates = vex.clock_rates()
-    # TODO: Redo the method, because in this case the clock epoch is the same for both stations.
-    #       Could it be that the clock epoch is different?
-    clock_epoch = vex.clock_epoch()['Ir']
     scan_start = vex.start_time(scan)
+    scan_start_unix = int(scan_start.unix)
+    sample_rate = int(vex.sample_rate())
+    scan_start_samples = scan_start_unix * sample_rate
+    times_per_block = int(sample_rate * integration_time)
 
-    epoch_offset = (clock_epoch - scan_start).to_value('sec')
     delays = {}
 
     # Read per-station delay tables
     for station, delay_file in delay_paths.items():
         sod, delay = read_delays(delay_file, scan)
-
         delays[station] = {
-            'sod': sod,
-            'del': delay,
+            "sod": sod,
+            "del": delay,
         }
 
     # Target times in SOD (sec_of_day) for interpolation
@@ -54,32 +54,35 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
 
     # Interpolate per station
     for station, d in delays.items():
-        sod = d['sod']
-        delay = d['del']
-        d['interp'] = Akima1DInterpolator(sod, delay, extrapolate=True)(target_sod)
+        d["interp"] = Akima1DInterpolator(
+            d["sod"], d["del"], extrapolate=True
+        )(target_sod)
 
-    # Absolute times for each integration (astropy Time array)
+    # Absolute sample timestamps as int64
+    x = scan_start_samples + np.rint(time_offsets * sample_rate).astype(np.int64)
+
+    # Apply clock model per station
     t_abs = scan_start + time_offsets * u.s
+    for station, d in delays.items():
+        ce = vex.clock_epoch()[station]
+        sec_clock = (t_abs - ce).to_value(u.s)
+        d["interp"] = d["interp"] + clock_offsets[station] + sec_clock * clock_rates[station]
+
+    final = {}
 
     for station, d in delays.items():
-        # per-station clock epoch (even if they happen to be equal)
-        ce = vex.clock_epoch()[station]
-        # seconds since that station's clock epoch
-        sec_clock = (t_abs - ce).to_value(u.s)  # float array
-        # add clock drift in seconds
-        d['interp'] = d['interp'] + clock_offsets[station] + sec_clock * clock_rates[station]
+        arr = np.empty(len(x), dtype=[("timestamp", np.int64), ("delay", np.float64)])
+        arr["timestamp"] = x
+        arr["delay"] = d["interp"]
+        final[station] = arr
 
-    ordered = {}
-
-    if reference_station not in delays:
+    if reference_station not in final:
         raise KeyError(f"Reference station '{reference_station}' not found in delays")
 
-    # Insert reference station first
-    ordered[reference_station] = delays[reference_station]['interp']
-
-    # Insert remaining stations
-    for station, d in delays.items():
+    ordered = {reference_station: final[reference_station]}
+    for station, arr in final.items():
         if station != reference_station:
-            ordered[station] = d['interp']
+            ordered[station] = arr
 
+    print(ordered)
     return ordered

@@ -18,25 +18,20 @@ from pycalc11 import Calc
 
 from vextractor import VEXtractor
 
-
 def save_config(path, delays, center_frequencies, channel_mapping):
-    """Write the correlator configuration to a binary file.
-
-    File format (all little-endian):
-        For each station: int32 n_delays, float64[n_delays] delay values
-        int32 n_frequencies, float64[n_frequencies] center frequencies in Hz
-        int32 n_channels, int32[n_channels] channel mapping indices
-    """
     with open(path, "wb") as file:
         for station, values in delays.items():
-            file.write(struct.pack("i", len(values)))
-            file.write(struct.pack("d" * len(values), *values))
+            file.write(struct.pack("<i", len(values)))
+            file.write(values.tobytes())
 
-        file.write(struct.pack("i", len(center_frequencies)))
-        file.write(struct.pack("d" * len(center_frequencies), *center_frequencies))
-        file.write(struct.pack("i", len(channel_mapping)))
-        file.write(struct.pack("i" * len(channel_mapping), *channel_mapping))
+        center_frequencies = np.asarray(center_frequencies, dtype="<f8")
+        channel_mapping = np.asarray(channel_mapping, dtype="<i4")
 
+        file.write(struct.pack("<i", len(center_frequencies)))
+        file.write(center_frequencies.tobytes())
+
+        file.write(struct.pack("<i", len(channel_mapping)))
+        file.write(channel_mapping.tobytes())
 
 def geometric_delays(vextractor, scan_nr, n_integrations, reference_station="Ib"):
     """Compute geometric delays for all stations using pycalc11.

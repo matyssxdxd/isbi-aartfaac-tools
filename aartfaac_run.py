@@ -78,8 +78,6 @@ if __name__ == "__main__":
     nr_samples_per_channel -= nr_samples_per_channel % 8
     n_integrations = np.ceil(duration / ((nr_samples_per_channel * nr_channels * 2) / sample_rate)) + 1
 
-    print(n_integrations)
-
     delay_type = ctrl_file['delay-type']
 
     if delay_type == 'sfxc':
