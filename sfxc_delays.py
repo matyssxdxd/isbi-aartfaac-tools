@@ -28,7 +28,6 @@ def read_delays(file, scan_name):
 
 def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, reference_station):
     duration = vex.duration(scan)
-    time_offsets = np.arange(0, n_integrations) * integration_time
 
     clock_offsets = vex.clock_offsets()
     clock_rates = vex.clock_rates()
@@ -48,32 +47,24 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
             "del": delay,
         }
 
-    # Target times in SOD (sec_of_day) for interpolation
-    scan_start_sod = float((scan_start.mjd % 1) * 86400.0)
-    target_sod = scan_start_sod + time_offsets
+    time_offsets = np.arange(-1, len(delays['Ib']['sod']) - 1, 1) # -1 and +1 beacuse SFXC delays have a padding of 1 second
 
-    # Interpolate per station
-    for station, d in delays.items():
-        d["interp"] = Akima1DInterpolator(
-            d["sod"], d["del"], extrapolate=True
-        )(target_sod)
-
-    # Absolute sample timestamps as int64
     x = scan_start_samples + np.rint(time_offsets * sample_rate).astype(np.int64)
 
     # Apply clock model per station
     t_abs = scan_start + time_offsets * u.s
+    print(t_abs)
     for station, d in delays.items():
         ce = vex.clock_epoch()[station]
         sec_clock = (t_abs - ce).to_value(u.s)
-        d["interp"] = d["interp"] + clock_offsets[station] + sec_clock * clock_rates[station]
+        d["del"] = d["del"] + clock_offsets[station] + sec_clock * clock_rates[station]
 
     final = {}
 
     for station, d in delays.items():
         arr = np.empty(len(x), dtype=[("timestamp", np.int64), ("delay", np.float64)])
         arr["timestamp"] = x
-        arr["delay"] = d["interp"]
+        arr["delay"] = d["del"]
         final[station] = arr
 
     if reference_station not in final:
@@ -84,5 +75,4 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
         if station != reference_station:
             ordered[station] = arr
 
-    print(ordered)
     return ordered
