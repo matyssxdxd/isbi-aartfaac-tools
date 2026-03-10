@@ -191,10 +191,10 @@ def _build_my_pol_vectors_for_window(vis_blocks, window_start, window_end):
 
         # Baseline index 1 is the cross-correlation baseline for 2 stations.
         cross = selected[1]
-        pol_chunks["RR"].append(np.flip(cross[:, 0]))
-        pol_chunks["RL"].append(np.flip(cross[:, 1]))
-        pol_chunks["LR"].append(np.flip(cross[:, 2]))
-        pol_chunks["LL"].append(np.flip(cross[:, 3]))
+        pol_chunks["RR"].append(np.asarray(cross[:, 0]).conj())
+        pol_chunks["RL"].append(np.asarray(cross[:, 1]).conj())
+        pol_chunks["LR"].append(np.asarray(cross[:, 2]).conj())
+        pol_chunks["LL"].append(np.asarray(cross[:, 3]).conj())
 
     pol_vectors = {}
     for pol in POLS:
@@ -350,9 +350,9 @@ def plot_sfxc_vs_mine(
 
 if __name__ == "__main__":
     plot_sfxc_vs_mine(
-        sfxc_corr_paths="./E011/E011.cor_0002",
-        my_data_paths="./results/E011_No0002/64_TEST/",
+        sfxc_corr_paths="./E011/E011.cor_0001",
+        my_data_paths="./results/E011_No0002/63_TEST/",
         title="SFXC vs AARTFAAC | E011 No0002 | 2 sec integration",
-        sfxc_subbands=[3],
+        sfxc_subbands=[1, 2, 3, 4, 5, 6, 7, 8],
 #        integration_batch_size=10
     )

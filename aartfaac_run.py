@@ -13,6 +13,7 @@ import os
 
 from vextractor import VEXtractor
 from generate_delays import geometric_delays, save_config
+from pycalc11_delays import pycalc11_delays
 from utils.helpers import parse_arguments
 from sfxc_delays import sfxc_delays
 
@@ -84,7 +85,7 @@ if __name__ == "__main__":
         delay_paths = {station: delay_path for station, delay_path in ctrl_file['delay-paths'].items()}
         delays = sfxc_delays(vex, delay_paths, scan_nr, n_integrations, integration_time, reference_station)
     else:
-        delays, _ = geometric_delays(vex, scan_nr, n_integrations=n_integrations, reference_station=reference_station)
+        delays = pycalc11_delays(vex, scan_nr, reference_station=reference_station)
 
     selected_indices = []
     for subband in subbands:

@@ -53,7 +53,6 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
 
     # Apply clock model per station
     t_abs = scan_start + time_offsets * u.s
-    print(t_abs)
     for station, d in delays.items():
         ce = vex.clock_epoch()[station]
         sec_clock = (t_abs - ce).to_value(u.s)

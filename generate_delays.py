@@ -14,6 +14,7 @@ import json
 import os
 
 from astropy.time import TimeDelta
+import astropy.units as u
 from pycalc11 import Calc
 
 from vextractor import VEXtractor
@@ -53,8 +54,8 @@ def geometric_delays(vextractor, scan_nr, n_integrations, reference_station="Ib"
     station_sites, station_locations = vextractor.station_locations(station_names)
     source_coords = vextractor.source_coords(scan_nr)
 
-    start_time = vextractor.start_time(scan_nr)
-    duration_sec = vextractor.duration(scan_nr)
+    start_time = vextractor.start_time(scan_nr) - 1 * u.s
+    duration_sec = vextractor.duration(scan_nr) + 1
     duration_min = duration_sec / 60
 
     ci = Calc(
@@ -66,7 +67,7 @@ def geometric_delays(vextractor, scan_nr, n_integrations, reference_station="Ib"
     )
     ci.run_driver()
 
-    time_offsets = np.linspace(0, duration_sec, n_integrations)
+    time_offsets = np.arange(0, duration_sec, 1)
     fine_time_grid = start_time + TimeDelta(time_offsets, format="sec")
     high_res_delays = ci.interpolate_delays(fine_time_grid)
 
