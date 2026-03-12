@@ -218,13 +218,12 @@ def _plot_phase_diff(ax_phase, pol_vectors_sfxc, pol_vectors_mine, title):
         data_mine = pol_vectors_mine[pol]
 
         x = np.arange(data_mine.size)
-        phase = np.angle(data_sfxc * np.conj(data_mine), deg=True)
+        phase = np.rad2deg(np.unwrap(np.angle(data_sfxc * np.conj(data_mine))))
         ax_phase.scatter(x, phase, label=pol, s=5)
 
 
     ax_phase.set_title(title)
     ax_phase.set_ylabel("Phase (deg)")
-    ax_phase.set_ylim(-200, 200)
     ax_phase.set_xlabel("Channel index")
     ax_phase.legend()
 
@@ -287,8 +286,8 @@ def plot_sfxc_vs_mine(
 
 if __name__ == "__main__":
     plot_sfxc_vs_mine(
-        sfxc_corr_paths="./E011/E011.cor_0002",
-        my_data_paths="./results/E011_No0002/64_TEST/",
-        title="SFXC vs AARTFAAC | E011 No0002 | 2 sec integration",
+        sfxc_corr_paths="./E011/E011.cor_0001",
+        my_data_paths="./results/temp/",
+        title="SFXC vs AARTFAAC | E011 No0001 | 2 sec integration",
         sfxc_subbands=[1, 2, 3, 4, 5, 6, 7, 8]
     )

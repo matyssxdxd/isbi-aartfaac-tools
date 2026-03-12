@@ -11,7 +11,7 @@
         "Ib": "/var/scratch/mpurvins/E011/No0001/e011_ib_no0001.m5a",
         "Ir": "/var/scratch/mpurvins/E011/No0001/e011_ir_no0001.m5a"
     },
-    "delay-type": "sfxc",
+    "delay-type": "pycalc11",
     "delay-paths": {
       "Ib": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011_Ib.del",
       "Ir": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011_Ir.del"

@@ -205,5 +205,5 @@ def plot_sfxc(path, exper, freqnr, sideband, integration=None):
 
 
 if __name__ == '__main__':
-    plot(['./results/E011_No0002/64_TEST'], 'E011 No0001', flip=False, integration=None, normalize=True)
+    plot(['./results/temp'], 'E011 No0001', flip=False, integration=None, normalize=True)
 
