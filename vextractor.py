@@ -179,7 +179,7 @@ class VEXtractor:
         epochs = {}
         for station in self.vex["STATION"].keys():
             station_epochs = self.clock_entry(station)[0]
-            epochs[station] = station_epochs["epoch"]
+            epochs[station] = station_epochs["start"]
         return epochs
 
     def center_frequencies(self):
@@ -204,6 +204,15 @@ class VEXtractor:
             center_frequencies.add(freq)
 
         return sorted(float(freq) * 1e6 for freq in center_frequencies)
+
+    def freqs(self):
+        all_chandefs = self.freq_def.getall('chan_def')
+        freqs = []
+        for chan_def in all_chandefs:
+            freq = float(chan_def[1].split()[0])
+            freqs.append(freq)
+
+        return freqs
 
     def channel_mapping(self):
         """Extract the VDIF thread-to-channel bit position mapping from the VEX THREADS block."""

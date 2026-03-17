@@ -46,6 +46,15 @@ def pycalc11_delays(vex, scan, reference_station="Ib"):
 
     x = scan_start_samples + np.rint(time_offsets * sample_rate).astype(np.int64)
 
+    clock_rates = vex.clock_rates()
+    clock_offsets = vex.clock_offsets()
+    t_abs = start_time + time_offsets * u.s
+    for station, d in g_delays.items():
+        ce = vex.clock_epoch()[station]
+        sec_clock = (t_abs - ce).to_value(u.s)
+        d = np.asarray(d, np.float64)
+        g_delays[station] = d + clock_offsets[station] + sec_clock * clock_rates[station]
+
     for station, d in g_delays.items():
         arr = np.empty(len(x), dtype=[("timestamp", np.int64), ("delay", np.float64)])
         arr["timestamp"] = x

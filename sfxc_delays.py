@@ -51,7 +51,6 @@ def sfxc_delays(vex, delay_paths, scan, n_integrations, integration_time, refere
 
     x = scan_start_samples + np.rint(time_offsets * sample_rate).astype(np.int64)
 
-    # Apply clock model per station
     t_abs = scan_start + time_offsets * u.s
     for station, d in delays.items():
         ce = vex.clock_epoch()[station]
