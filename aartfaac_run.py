@@ -11,10 +11,9 @@ import argparse
 import json
 import os
 
-from vextractor import VEXtractor
-from generate_delays import geometric_delays, save_config
-from pycalc11_delays import pycalc11_delays
-from utils.helpers import parse_arguments
+from utils.vextractor import VEXtractor
+from utils.pycalc11_delays import pycalc11_delays
+from utils.helpers import parse_arguments, save_config
 from utils.sfxc_delays import sfxc_delays
 
 DEBUG = True

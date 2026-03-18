@@ -6,7 +6,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sfxcdata import SFXCData
+from utils.sfxcdata import SFXCData
 from utils.process_data import read_visibility_file
 from utils.helpers import parse_arguments
 

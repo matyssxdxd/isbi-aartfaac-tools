@@ -2,7 +2,7 @@ import numpy as np
 import astropy.units as u
 
 from pycalc11 import Calc
-from vextractor import VEXtractor
+from utils.vextractor import VEXtractor
 from astropy.time import TimeDelta
 
 def pycalc11_delays(vex, scan, reference_station="Ib"):

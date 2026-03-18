@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
 
 import os
 import glob
 import numpy as np
 
+from utils.helpers import parse_arguments
 from utils.process_data import read_visibility_file
 
 BL_CROSS = 1
@@ -31,8 +33,14 @@ def fringe_metrics(spec, chan_bw_hz, guard=3):
     return fringe_amp, snr, lag_bins, lag_sec
 
 if __name__ == "__main__":
-    path = "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/results/temp/"
-    files = sorted(glob.glob(os.path.join(path, "*.out")))
+    description = 'Print fringe metrics about ISBI-AARTFAAC .out files'
+    arguments = {
+        'out_path': 'Path to ISBI-AARTFAAC .out files'
+    }
+
+    args = parse_arguments(description, arguments)
+
+    files = sorted(glob.glob(os.path.join(args.out_path, "*.out")))
     guard = 3
 
     for file in files:
