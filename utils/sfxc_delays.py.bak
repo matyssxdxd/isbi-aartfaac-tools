@@ -1,0 +1,125 @@
+import numpy as np
+import astropy.units as u
+
+from utils.delay_file_reader import DelayFileReader
+
+def read_delays(file, scan_name):
+    """Read VLBI delay values for a scan from an SFXC delay file.
+
+    The function instantiates :class:`DelayFileReader`, loads the file, finds
+    the requested scan, and returns the scan's sample times and delays.
+
+    Parameters
+    ----------
+    file : str or path-like
+        Path to an SFXC delay file.
+    scan_name : str
+        Name of the scan to extract, usually in format 'Noxxxx'.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        ``(sec_of_day, delays)`` arrays for the selected scan.
+    """
+    reader = DelayFileReader(file)
+    reader.read_file()
+
+    matching_scans = [scan for scan in reader.scans if scan['scan_name'] == scan_name]
+    if not matching_scans:
+        raise ValueError(f"Scan '{scan_name}' not found in {file}")
+
+    scan = matching_scans[0]
+    sec_of_day = []
+    delays = []
+    for point in scan['points']:
+        sec_of_day.append(point['sec_of_day'])
+        delays.append(point['delay'])
+
+    return np.array(sec_of_day), np.array(delays)
+
+
+def sfxc_delays(vex, delay_paths, scan, reference_station, ignore_clock=False):
+    """Convert SFXC delay tables to ISBI-AARTFAAC-compatible delays.
+
+    For each station, this function reads the SFXC delay table for ``scan``,
+    maps ``sec_of_day`` entries to integer sample timestamps, and returns
+    structured arrays with ``timestamp`` and corrected ``delay`` fields.
+    Clock offsets and clock rates from ``vex`` are applied at each sample time.
+    The output dictionary is ordered to place ``reference_station`` first.
+
+    Parameters
+    ----------
+    vex : object
+        VEX helper object providing timing, sampling, and clock metadata via
+        ``clock_offsets()``, ``clock_rates()``, ``clock_epoch()``,
+        ``sample_rate()``, and ``start_time(scan)``.
+    delay_paths : dict[str, str or path-like]
+        Mapping from station name to SFXC delay file path.
+    scan : str
+        Scan name to extract from each delay file.
+    reference_station : str
+        Station to place first in the returned mapping.
+
+    Returns
+    -------
+    dict[str, np.ndarray]
+        Station-keyed mapping of structured arrays with dtype
+        ``[("timestamp", np.int64), ("delay", np.float64)]``.
+    """
+    delays = {}
+    sod_ref = None
+
+    clock_offsets = vex.clock_offsets()
+    clock_rates = vex.clock_rates()
+    clock_epochs = vex.clock_epoch()
+
+    print(clock_offsets)
+    print(clock_rates)
+    print(clock_epochs)
+
+    sample_rate = vex.sample_rate()
+    scan_start = vex.start_time(scan)
+    scan_start_samples = int(np.round(scan_start.unix * sample_rate))
+    scan_start_sod = (
+        scan_start.datetime.hour * 3600 +
+        scan_start.datetime.minute * 60 +
+        scan_start.datetime.second +
+        scan_start.datetime.microsecond / 1e6
+    )
+
+    for station, delay_file in delay_paths.items():
+        sod, delay = read_delays(delay_file, scan)
+        sod = np.asarray(sod, dtype=np.float64)
+        delay = np.asarray(delay, dtype=np.float64)
+
+        # TODO: Could be some error if sod for both delay tables do not match,
+        #       but can that even be the case?
+        if sod_ref is None:
+            sod_ref = sod
+
+        delta_sec = sod - scan_start_sod
+        timestamp = (scan_start_samples + np.rint(delta_sec * sample_rate)).astype(np.int64)
+
+        arr = np.empty(len(delay), dtype=[("timestamp", np.int64), ("delay", np.float64)])
+        arr["timestamp"] = timestamp
+        arr["delay"] = delay
+        delays[station] = arr
+
+    if not ignore_clock:
+        delta_sec_ref = sod_ref - scan_start_sod
+        t_abs = scan_start + delta_sec_ref * u.s
+
+        for station, arr in delays.items():
+            sec_clock = (t_abs - clock_epochs[station]).to_value(u.s)
+            arr["delay"] += clock_offsets[station] + sec_clock * clock_rates[station]
+
+    print(delays)
+    if reference_station not in delays:
+        raise KeyError(f"Reference station '{reference_station}' not found in delays")
+
+    ordered = {reference_station: delays[reference_station]}
+    for station, arr in delays.items():
+        if station != reference_station:
+            ordered[station] = arr
+
+    return ordered

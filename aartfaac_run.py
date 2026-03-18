@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     if delay_type == 'sfxc':
         delay_paths = {station: delay_path for station, delay_path in ctrl_file['delay-paths'].items()}
-        delays = sfxc_delays(vex, delay_paths, scan_nr, reference_station)
+        delays = sfxc_delays(vex, delay_paths, scan_nr, integration_time, n_integrations, reference_station)
     else:
         delays = pycalc11_delays(vex, scan_nr, reference_station=reference_station)
 

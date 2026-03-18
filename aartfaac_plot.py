@@ -55,7 +55,7 @@ def _collect_out_files(path_or_paths):
 def _build_sfxc_pol_vectors(
     sfxc_corr_paths,
     subbands,
-    baseline=("Ib", "Ir"),
+    baseline=None,
     integration=None,
 ):
     files = _collect_sfxc_files(sfxc_corr_paths)
@@ -76,14 +76,27 @@ def _build_sfxc_pol_vectors(
             seen_pairs.add(pair)
 
     by_key = {}
+    available_baselines = set()
+
+    def _choose_baseline(visibilities):
+        if baseline is not None:
+            return baseline if baseline in visibilities else None
+
+        cross = sorted(bl for bl in visibilities if bl[0] != bl[1])
+        if cross:
+            return cross[0]
+
+        return sorted(visibilities)[0] if visibilities else None
 
     for file in files:
         sfxc = SFXCData(file)
 
         def collect_current():
-            if baseline not in sfxc.vis:
+            available_baselines.update(sfxc.vis.keys())
+            selected_baseline = _choose_baseline(sfxc.vis)
+            if selected_baseline is None:
                 return
-            for chan, vis in sfxc.vis[baseline].items():
+            for chan, vis in sfxc.vis[selected_baseline].items():
                 if (chan.freqnr, chan.sideband) not in seen_pairs:
                     continue
                 pol = POL_MAP.get((chan.pol1, chan.pol2))
@@ -97,8 +110,11 @@ def _build_sfxc_pol_vectors(
             collect_current()
 
     if not by_key:
+        baseline_desc = baseline if baseline is not None else "auto-selected cross baseline"
         raise ValueError(
-            f"No SFXC visibilities found for baseline {baseline} and subbands {subbands}"
+            "No SFXC visibilities found for "
+            f"baseline {baseline_desc} and subbands {subbands}. "
+            f"Available baselines: {sorted(available_baselines)}"
         )
 
     pol_vectors = {}
@@ -166,10 +182,10 @@ def _build_my_pol_vectors(my_data_paths, integration=None):
 
         # Baseline index 1 is the cross-correlation baseline for 2 stations.
         cross = selected[1]
-        pol_chunks["RR"].append(np.asarray(cross[:, 0]))
-        pol_chunks["RL"].append(np.asarray(cross[:, 1]))
-        pol_chunks["LR"].append(np.asarray(cross[:, 2]))
-        pol_chunks["LL"].append(np.asarray(cross[:, 3]))
+        pol_chunks["RR"].append(np.asarray(cross[:, 0]).conj())
+        pol_chunks["RL"].append(np.asarray(cross[:, 1]).conj())
+        pol_chunks["LR"].append(np.asarray(cross[:, 2]).conj())
+        pol_chunks["LL"].append(np.asarray(cross[:, 3]).conj())
 
     pol_vectors = {}
     for pol in POLS:
@@ -242,7 +258,7 @@ def plot_sfxc_vs_mine(
     my_data_paths,
     title,
     sfxc_subbands,
-    baseline=("Ib", "Ir"),
+    baseline=None,
     integration=None,
     sfxc_text_output="sfxc_data_E011_No0017.txt",
     my_text_output="aartfaac_data_E011_No0017.txt",
@@ -258,7 +274,7 @@ def plot_sfxc_vs_mine(
             combinations found for those subbands in one combined plot.
             Fixed mapping is 1-indexed:
             1 -> (0,0), 2 -> (0,1), 3 -> (1,0), 4 -> (1,1), ...
-        baseline: Baseline tuple in SFXC data.
+        baseline: Baseline tuple in SFXC data. If None, first cross baseline is used.
         integration: If set, use this integration index. If None, average all.
         sfxc_text_output: Output text file for SFXC polarization data.
         my_text_output: Output text file for ISBI-AARTFAAC polarization data.
@@ -290,7 +306,8 @@ if __name__ == "__main__":
     arguments = {
         'outs': 'Path to the .out files',
         'exper': 'Experiment identifier',
-        'scan': 'Scan number'
+        'scan': 'Scan number',
+        'sfxccorr': 'Sfxc corr file path'
     }
 
     args = parse_arguments(description, arguments)
@@ -299,8 +316,8 @@ if __name__ == "__main__":
     print(scan_no)
 
     plot_sfxc_vs_mine(
-        sfxc_corr_paths=f"./{args.exper}/{args.exper}.cor_{scan_no}",
+        sfxc_corr_paths=args.sfxccorr,
         my_data_paths=args.outs,
-        title="SFXC vs AARTFAAC | E011 No0001 | 2 sec integration",
+        title=f"SFXC vs AARTFAAC | {args.exper} {args.scan}",
         sfxc_subbands=[1, 2, 3, 4, 5, 6, 7, 8]
     )
