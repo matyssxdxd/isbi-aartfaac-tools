@@ -4,14 +4,14 @@
     "scan-number": "No0004",
     "output-path": "/var/scratch/mpurvins/",
     "subbands": [1, 2, 3, 4, 5, 6, 7, 8],
-    "reference-station": "Ib",
+    "reference-station": "Ir",
     "integration-time": 2.0,
     "nr-channels": 256,
     "data-paths": {
         "Ib": "/var/scratch/mpurvins/E011/No0004/e011_ib_no0004.m5a",
         "Ir": "/var/scratch/mpurvins/E011/No0004/e011_ir_no0004.m5a"
     },
-    "delay-type": "pycalc11",
+    "delay-type": "sfxc",
     "delay-paths": {
       "Ib": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011_Ib.del",
       "Ir": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011_Ir.del"

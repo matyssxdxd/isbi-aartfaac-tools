@@ -179,7 +179,7 @@ class VEXtractor:
         epochs = {}
         for station in self.vex["STATION"].keys():
             station_epochs = self.clock_entry(station)[0]
-            epochs[station] = station_epochs["start"]
+            epochs[station] = station_epochs["epoch"]
         return epochs
 
     def center_frequencies(self):

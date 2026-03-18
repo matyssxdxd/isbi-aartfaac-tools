@@ -8,6 +8,7 @@ import numpy as np
 
 from sfxcdata import SFXCData
 from utils.process_data import read_visibility_file
+from utils.helpers import parse_arguments
 
 POLS = ["RR", "RL", "LR", "LL"]
 POL_MAP = {(0, 0): "RR", (0, 1): "RL", (1, 0): "LR", (1, 1): "LL"}
@@ -165,10 +166,10 @@ def _build_my_pol_vectors(my_data_paths, integration=None):
 
         # Baseline index 1 is the cross-correlation baseline for 2 stations.
         cross = selected[1]
-        pol_chunks["RR"].append(np.asarray(cross[:, 0].conj()))
-        pol_chunks["RL"].append(np.asarray(cross[:, 1].conj()))
-        pol_chunks["LR"].append(np.asarray(cross[:, 2].conj()))
-        pol_chunks["LL"].append(np.asarray(cross[:, 3].conj()))
+        pol_chunks["RR"].append(np.asarray(cross[:, 0]))
+        pol_chunks["RL"].append(np.asarray(cross[:, 1]))
+        pol_chunks["LR"].append(np.asarray(cross[:, 2]))
+        pol_chunks["LL"].append(np.asarray(cross[:, 3]))
 
     pol_vectors = {}
     for pol in POLS:
@@ -285,9 +286,21 @@ def plot_sfxc_vs_mine(
 
 
 if __name__ == "__main__":
+    description = 'Generate ISBI-AARTFAAC run cmd and configuration file'
+    arguments = {
+        'outs': 'Path to the .out files',
+        'exper': 'Experiment identifier',
+        'scan': 'Scan number'
+    }
+
+    args = parse_arguments(description, arguments)
+
+    scan_no = args.scan.strip("No")
+    print(scan_no)
+
     plot_sfxc_vs_mine(
-        sfxc_corr_paths="./E011/E011.cor_0003",
-        my_data_paths="./results/temp/",
-        title="SFXC vs AARTFAAC | E011 No0003 | 2 sec integration",
+        sfxc_corr_paths=f"./{args.exper}/{args.exper}.cor_{scan_no}",
+        my_data_paths=args.outs,
+        title="SFXC vs AARTFAAC | E011 No0001 | 2 sec integration",
         sfxc_subbands=[1, 2, 3, 4, 5, 6, 7, 8]
     )
