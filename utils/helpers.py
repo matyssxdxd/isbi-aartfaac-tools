@@ -17,9 +17,9 @@ def sod_to_hms(sod):
 
     h = int(sod // 3600)
     m = int((sod % 3600) // 60)
-    s = sod % 60  # keep fractional part
+    s = sod % 60
 
-    return f"{h:02d}:{m:02d}:{s:06.3f}"  # 2 digits + .mmm
+    return f"{h:02d}:{m:02d}:{s:06.3f}"
 
 def save_config(path, delays, center_frequencies, channel_mapping):
     with open(path, "wb") as file:

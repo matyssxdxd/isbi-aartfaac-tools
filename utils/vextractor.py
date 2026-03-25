@@ -20,8 +20,12 @@ def parse_vex_time(time_str):
     minute = int(time_str[12:14])
     second = int(time_str[15:17])
 
-    date = Time(f"{year}-01-01T00:00:00.000", format="isot", scale="utc") + TimeDelta(day_of_year - 1, format="jd")
-    formatted_date = f"{date.strftime('%Y-%m-%d')}T{hour:02}:{minute:02}:{second:02}.000"
+    date = Time(f"{year}-01-01T00:00:00.000", format="isot", scale="utc") + TimeDelta(
+        day_of_year - 1, format="jd"
+    )
+    formatted_date = (
+        f"{date.strftime('%Y-%m-%d')}T{hour:02}:{minute:02}:{second:02}.000"
+    )
     return Time(formatted_date, format="isot", scale="utc")
 
 
@@ -36,7 +40,7 @@ class VEXtractor:
         with open(vex_path) as f:
             self.vex = vex.parse(f.read())
 
-        freq_block = self.vex['FREQ']
+        freq_block = self.vex["FREQ"]
         freq_key = list(freq_block.keys())[0]
         self.freq_def = freq_block[freq_key]
 
@@ -109,8 +113,10 @@ class VEXtractor:
         entries = clock_block.getall("clock_early")
 
         if not entries:
-            raise ValueError(f"No clock_early entries for station '{station}' (CLOCK='{clock_ref}')")
-        
+            raise ValueError(
+                f"No clock_early entries for station '{station}' (CLOCK='{clock_ref}')"
+            )
+
         parsed = []
         for row in entries:
             start = parse_vex_time(row[0])
@@ -136,11 +142,10 @@ class VEXtractor:
 
     def clock_entry(self, station):
         """Return the active clock_early entry for a station."""
-        entry= self._clock_entries_for_station(station)
+        entry = self._clock_entries_for_station(station)
 
         if entry is None:
-            raise ValueError(
-                f"No clock_early entry for station '{station}'")
+            raise ValueError(f"No clock_early entry for station '{station}'")
 
         return entry
 
@@ -174,7 +179,7 @@ class VEXtractor:
             station_rates = self.clock_entry(station)[0]
             rates[station] = station_rates["rate_sec_per_sec"]
         return rates
-    
+
     def clock_epoch(self):
         epochs = {}
         for station in self.vex["STATION"].keys():
@@ -188,7 +193,7 @@ class VEXtractor:
         Adjusts each channel's edge frequency by half the bandwidth based on
         sideband (L=lower, U=upper) to compute the true center frequency.
         """
-        all_chandefs = self.freq_def.getall('chan_def')
+        all_chandefs = self.freq_def.getall("chan_def")
 
         center_frequencies = set()
         for chan_def in all_chandefs:
@@ -196,9 +201,9 @@ class VEXtractor:
             bound = chan_def[2]
             bandwidth = float(chan_def[3].split()[0])
 
-            if bound == 'L':
+            if bound == "L":
                 freq -= bandwidth / 2
-            elif bound == 'U':
+            elif bound == "U":
                 freq += bandwidth / 2
 
             center_frequencies.add(freq)
@@ -206,7 +211,7 @@ class VEXtractor:
         return sorted(float(freq) * 1e6 for freq in center_frequencies)
 
     def freqs(self):
-        all_chandefs = self.freq_def.getall('chan_def')
+        all_chandefs = self.freq_def.getall("chan_def")
         freqs = []
         for chan_def in all_chandefs:
             freq = float(chan_def[1].split()[0])
@@ -216,10 +221,10 @@ class VEXtractor:
 
     def channel_mapping(self):
         """Extract the VDIF thread-to-channel bit position mapping from the VEX THREADS block."""
-        threads_block = self.vex['THREADS']
+        threads_block = self.vex["THREADS"]
         thread_key = list(threads_block.keys())[0]
         thread_def = threads_block[thread_key]
-        all_channels = thread_def.getall('channel')
+        all_channels = thread_def.getall("channel")
         return [int(channel[2]) for channel in all_channels]
 
     def sample_rate(self):
@@ -228,7 +233,7 @@ class VEXtractor:
         Returns:
             Sample rate in Hz (e.g. 32 Ms/sec -> 32000000.0).
         """
-        sample_rate_str = self.freq_def['sample_rate']
+        sample_rate_str = self.freq_def["sample_rate"]
         return float(sample_rate_str.split()[0]) * 1e6
 
     def subband_bandwidth(self):
@@ -237,7 +242,7 @@ class VEXtractor:
         Returns:
             Subband bandwidth in Hz (e.g. 16 MHz -> 16000000.0).
         """
-        all_chandefs = self.freq_def.getall('chan_def')
+        all_chandefs = self.freq_def.getall("chan_def")
         bandwidth = float(all_chandefs[0][3].split()[0])
         return bandwidth * 1e6
 

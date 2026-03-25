@@ -22,3 +22,8 @@ aartfaac_fit.py
 clock.json
 E011.vix
 E011.clk.vix
+E011.vex
+E011.vixtmp
+aartfaac_plot_animation.py
+clocks.json
+usno_finals.erp

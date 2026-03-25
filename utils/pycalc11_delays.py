@@ -5,9 +5,14 @@ from pycalc11 import Calc
 from utils.vextractor import VEXtractor
 from astropy.time import TimeDelta
 
+# TODO: After finishing aartfaac_fit.py, this should be looked at.
+
+
 def pycalc11_delays(vex, scan, reference_station="Ib"):
     all_stations = vex.stations()
-    station_names = [reference_station] + [s for s in all_stations if s != reference_station]
+    station_names = [reference_station] + [
+        s for s in all_stations if s != reference_station
+    ]
 
     station_sites, station_locations = vex.station_locations(station_names)
     source_coords = vex.source_coords(scan)
@@ -21,11 +26,13 @@ def pycalc11_delays(vex, scan, reference_station="Ib"):
         station_coords=list(station_locations.values()),
         source_coords=source_coords,
         start_time=start_time,
-        duration_min=duration_min
+        duration_min=duration_min,
     )
     ci.run_driver()
 
-    time_offsets = np.arange(-1, duration_sec + 1, 1) # padding of 1 second on each side
+    time_offsets = np.arange(
+        -1, duration_sec + 1, 1
+    )  # padding of 1 second on each side
     fine_time_grid = start_time + TimeDelta(time_offsets, format="sec")
     high_res_delays = ci.interpolate_delays(fine_time_grid)
 
@@ -53,7 +60,9 @@ def pycalc11_delays(vex, scan, reference_station="Ib"):
         ce = vex.clock_epoch()[station]
         sec_clock = (t_abs - ce).to_value(u.s)
         d = np.asarray(d, np.float64)
-        g_delays[station] = d + clock_offsets[station] + sec_clock * clock_rates[station]
+        g_delays[station] = (
+            d + clock_offsets[station] + sec_clock * clock_rates[station]
+        )
 
     for station, d in g_delays.items():
         arr = np.empty(len(x), dtype=[("timestamp", np.int64), ("delay", np.float64)])
@@ -63,8 +72,8 @@ def pycalc11_delays(vex, scan, reference_station="Ib"):
 
     return final
 
-if __name__ == '__main__':
-    vex = VEXtractor('./E011/E011.vix')
-    scan = 'No0002'
-    pycalc11_delays(vex, scan)
 
+if __name__ == "__main__":
+    vex = VEXtractor("./E011/E011.vix")
+    scan = "No0002"
+    pycalc11_delays(vex, scan)

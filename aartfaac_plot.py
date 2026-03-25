@@ -103,14 +103,18 @@ def _build_sfxc_pol_vectors(
                 if pol is None:
                     continue
                 key = (chan.freqnr, chan.sideband, pol)
-                by_key.setdefault(key, []).append(np.asarray(vis.vis, dtype=np.complex64))
+                by_key.setdefault(key, []).append(
+                    np.asarray(vis.vis, dtype=np.complex64)
+                )
 
         collect_current()
         while sfxc.next_integration():
             collect_current()
 
     if not by_key:
-        baseline_desc = baseline if baseline is not None else "auto-selected cross baseline"
+        baseline_desc = (
+            baseline if baseline is not None else "auto-selected cross baseline"
+        )
         raise ValueError(
             "No SFXC visibilities found for "
             f"baseline {baseline_desc} and subbands {subbands}. "
@@ -143,8 +147,6 @@ def _build_sfxc_pol_vectors(
             else:
                 vec = np.conj(vec)
 
-            vec = vec[1:-1]
-
             chunks.append(np.asarray(vec, dtype=np.complex64))
 
         if chunks:
@@ -160,10 +162,11 @@ def _build_my_pol_vectors(my_data_paths, integration=None):
     if not files:
         raise FileNotFoundError("No .out files found for your data")
 
+    cross_baseline_idx = 1
     pol_chunks = {pol: [] for pol in POLS}
 
-    for file in files:
-        _, visibilities = read_visibility_file(file, normalize=True)
+    for file_idx, file in enumerate(files):
+        headers, visibilities = read_visibility_file(file, normalize=True)
         if not visibilities:
             continue
 
@@ -171,7 +174,21 @@ def _build_my_pol_vectors(my_data_paths, integration=None):
         n_integrations = vis.shape[0]
 
         if integration is None:
-            selected = np.mean(vis, axis=0)
+            weights = np.asarray(
+                [header.weights[cross_baseline_idx] for header in headers],
+                dtype=np.float64,
+            )
+            if weights.size != n_integrations:
+                raise ValueError(
+                    f"Header/integration mismatch in {file}: "
+                    f"{weights.size} headers vs {n_integrations} integrations"
+                )
+
+            total_weight = float(np.sum(weights))
+            if total_weight > 0:
+                selected = np.tensordot(weights, vis, axes=(0, 0)) / total_weight
+            else:
+                selected = np.mean(vis, axis=0)
         else:
             if integration < 0 or integration >= n_integrations:
                 raise ValueError(
@@ -181,11 +198,20 @@ def _build_my_pol_vectors(my_data_paths, integration=None):
             selected = vis[integration]
 
         # Baseline index 1 is the cross-correlation baseline for 2 stations.
-        cross = selected[1]
-        pol_chunks["RR"].append(np.asarray(cross[:, 0]).conj())
-        pol_chunks["RL"].append(np.asarray(cross[:, 1]).conj())
-        pol_chunks["LR"].append(np.asarray(cross[:, 2]).conj())
-        pol_chunks["LL"].append(np.asarray(cross[:, 3]).conj())
+        cross = selected[cross_baseline_idx]
+        subband_number = file_idx + 1
+        mirrored = [1, 3, 5, 7]
+
+        def transform_my_subband(vec):
+            vec = np.asarray(vec, dtype=np.complex64)
+            # if subband_number in mirrored:
+            #     return vec
+            return np.conj(vec)
+
+        pol_chunks["RR"].append(transform_my_subband(cross[:, 0]))
+        pol_chunks["RL"].append(transform_my_subband(cross[:, 1]))
+        pol_chunks["LR"].append(transform_my_subband(cross[:, 2]))
+        pol_chunks["LL"].append(transform_my_subband(cross[:, 3]))
 
     pol_vectors = {}
     for pol in POLS:
@@ -229,6 +255,7 @@ def _plot_dataset(ax_phase, ax_amp, ax_lag, pol_vectors, title):
     ax_lag.set_xlabel("Lag")
     ax_lag.legend()
 
+
 def _plot_phase_diff(ax_phase, pol_vectors_sfxc, pol_vectors_mine, title):
     for pol in POLS:
         data_sfxc = pol_vectors_sfxc[pol]
@@ -238,11 +265,11 @@ def _plot_phase_diff(ax_phase, pol_vectors_sfxc, pol_vectors_mine, title):
         phase = np.rad2deg(np.unwrap(np.angle(data_sfxc * np.conj(data_mine))))
         ax_phase.scatter(x, phase, label=pol, s=5)
 
-
     ax_phase.set_title(title)
     ax_phase.set_ylabel("Phase (deg)")
     ax_phase.set_xlabel("Channel index")
     ax_phase.legend()
+
 
 def _save_pol_vectors_to_text(pol_vectors, output_path):
     with open(output_path, "w", encoding="utf-8") as file:
@@ -285,39 +312,46 @@ def plot_sfxc_vs_mine(
         baseline=baseline,
         integration=integration,
     )
-    my_pol_vectors = _build_my_pol_vectors(my_data_paths=my_data_paths, integration=integration)
+    my_pol_vectors = _build_my_pol_vectors(
+        my_data_paths=my_data_paths, integration=integration
+    )
     # _save_pol_vectors_to_text(sfxc_pol_vectors, sfxc_text_output)
     # _save_pol_vectors_to_text(my_pol_vectors, my_text_output)
 
-    fig, axs = plt.subplots(1, 1, figsize=(16, 10))
-    _plot_phase_diff(axs, sfxc_pol_vectors, my_pol_vectors, "SFXC vs AARTFAAC phase")
+    print(len(sfxc_pol_vectors["RR"]))
+    print(len(my_pol_vectors["RR"]))
+
+    # fig, axs = plt.subplots(1, 1, figsize=(16, 10))
+    # _plot_phase_diff(axs, sfxc_pol_vectors, my_pol_vectors, "SFXC vs AARTFAAC phase")
     fig, axs = plt.subplots(3, 2, figsize=(16, 10))
     _plot_dataset(axs[0, 0], axs[1, 0], axs[2, 0], sfxc_pol_vectors, "SFXC")
     _plot_dataset(axs[0, 1], axs[1, 1], axs[2, 1], my_pol_vectors, "ISBI-AARTFAAC")
 
-    integration_label = f"Integration {integration}" if integration is not None else "Averaged"
+    integration_label = (
+        f"Integration {integration}" if integration is not None else "Averaged"
+    )
     fig.suptitle(f"{title} | {integration_label}")
     plt.tight_layout()
     plt.show()
 
 
 if __name__ == "__main__":
-    description = 'Generate ISBI-AARTFAAC run cmd and configuration file'
+    description = "Generate ISBI-AARTFAAC run cmd and configuration file"
     arguments = {
-        'outs': 'Path to the .out files',
-        'exper': 'Experiment identifier',
-        'scan': 'Scan number',
-        'sfxccorr': 'Sfxc corr file path'
+        "outs": "Path to the .out files",
+        "exper": "Experiment identifier",
+        "scan": "Scan number",
+        "sfxccorr": "Sfxc corr file path",
+        "integration": "Integration nr",
     }
 
     args = parse_arguments(description, arguments)
 
     scan_no = args.scan.strip("No")
-    print(scan_no)
 
     plot_sfxc_vs_mine(
         sfxc_corr_paths=args.sfxccorr,
         my_data_paths=args.outs,
         title=f"SFXC vs AARTFAAC | {args.exper} {args.scan}",
-        sfxc_subbands=[1, 2, 3, 4, 5, 6, 7, 8]
+        sfxc_subbands=[1, 2, 3, 4, 5, 6, 7, 8],
     )
