@@ -1,6 +1,6 @@
 {
     "experiment": "E011",
-    "vex-path": "/home/matyss/Work/RADIOBLOCKS/sfxc_test/E011.clk1.vix",
+    "vex-path": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011.vix",
     "scan-number": "No0017",
     "output-path": "/var/scratch/mpurvins/",
     "subbands": [1, 2, 3, 4, 5, 6, 7, 8],

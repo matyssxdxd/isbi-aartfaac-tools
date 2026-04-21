@@ -113,7 +113,7 @@ def sfxc_delays(vex, delay_paths, scan, reference_station):
 
     for station, arr in delays.items():
         sec_clock = (t_abs - clock_epochs[station]).to_value(u.s)
-        arr["delay"] += clock_offsets[station] + sec_clock * clock_rates[station]
+        arr["delay"] += clock_offsets[station] + 6.25 * sec_clock * clock_rates[station]
 
     if reference_station not in delays:
         raise KeyError(f"Reference station '{reference_station}' not found in delays")

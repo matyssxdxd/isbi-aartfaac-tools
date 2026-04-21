@@ -30,8 +30,5 @@ def save_config(path, delays, center_frequencies, channel_mapping):
         center_frequencies = np.asarray(center_frequencies, dtype="<f8")
         channel_mapping = np.asarray(channel_mapping, dtype="<i4")
 
-        file.write(struct.pack("<i", len(center_frequencies)))
-        file.write(center_frequencies.tobytes())
-
-        file.write(struct.pack("<i", len(channel_mapping)))
-        file.write(channel_mapping.tobytes())
+        print(center_frequencies)
+        print(channel_mapping)
