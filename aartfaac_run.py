@@ -18,7 +18,7 @@ from utils.sfxc_delays import sfxc_delays
 
 DEBUG = True
 
-def generate_run_cmd(config_path, nr_samples_per_channel, nr_channels, subbands, start_time,
+def generate_run_cmd(config_path, center_frequencies, nr_samples_per_channel, nr_channels, subbands, start_time,
                      runtime, sample_rate, subband_bandwidth, input_path, output_path):
     """Generate the shell command to run the ISBI-AARTFAAC correlator.
 
@@ -37,11 +37,11 @@ def generate_run_cmd(config_path, nr_samples_per_channel, nr_channels, subbands,
     Returns:
         The correlator run command as a string.
     """
-    run_cmd = (f'TZ=UTC ISBI/ISBI --configFile {config_path} -p1 -n2 '
+    run_cmd = (f'TZ=UTC ISBI/ISBI --delayFile {config_path} -F {"".join(str(x) for x in center_frequencies)} -p1 -n2 '
                f'-t{nr_samples_per_channel} -c{nr_channels} -C{nr_channels - 1} '
                f'-b16 -s{len(subbands)} -m15 '
                f'-D "{start_time}" -r{runtime} '
-               f'-g0 -q1 -R0 -B0 '
+               f'-g0 -q1 -R0 -B0 -d1'
                f'-f{sample_rate} --subbandBandwidth {subband_bandwidth} '
                f'-i {input_path} -o {output_path}')
 
@@ -118,6 +118,7 @@ if __name__ == "__main__":
 
     run_cmd = generate_run_cmd(
         config_path=config_path,
+        center_frequencies=center_frequencies,
         nr_samples_per_channel=nr_samples_per_channel,
         nr_channels=nr_channels,
         subbands=subbands,
