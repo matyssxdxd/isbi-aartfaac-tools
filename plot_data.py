@@ -1,5 +1,5 @@
 from utils.read_data import read_all, read_subband
-from utils.process_data import weighted_mean, normalize_by_autos 
+from utils.process_data import extract_weights, normalize_cross, normalize_auto, weighted_average_integrations
 import matplotlib.pyplot as plt
 import numpy as np
 import glob
@@ -13,8 +13,10 @@ if __name__ == "__main__":
     processed_data = []
 
     for h, vis in zip(headers, visibilities):
-        averaged = weighted_mean(h, vis)
-        # normalized = normalize_by_autos(averaged)
+        w = extract_weights(h)
+        norm = normalize_cross(vis)
+        norm, _ = normalize_auto(norm)
+        averaged, _ = weighted_average_integrations(norm, w)
         processed_data.append(averaged)
 
     processed_data = np.array(processed_data)
