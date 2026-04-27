@@ -37,11 +37,11 @@ def generate_run_cmd(config_path, center_frequencies, nr_samples_per_channel, nr
     Returns:
         The correlator run command as a string.
     """
-    run_cmd = (f'TZ=UTC ISBI/ISBI --delayFile {config_path} -F {"".join(str(x) for x in center_frequencies)} -p1 -n2 '
+    run_cmd = (f'TZ=UTC ISBI/ISBI --delayFile {config_path} -F {",".join(str(x) for x in center_frequencies)} -p1 -n2 '
                f'-t{nr_samples_per_channel} -c{nr_channels} -C{nr_channels - 1} '
                f'-b16 -s{len(subbands)} -m15 '
                f'-D "{start_time}" -r{runtime} '
-               f'-g0 -q1 -R0 -B0 -d1'
+               f'-g0 -q1 -R0 -B0 -d1 '
                f'-f{sample_rate} --subbandBandwidth {subband_bandwidth} '
                f'-i {input_path} -o {output_path}')
 

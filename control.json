@@ -1,6 +1,6 @@
 {
     "experiment": "E011",
-    "vex-path": "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/E011/E011.vix",
+    "vex-path": "/home/matyss/Work/RADIOBLOCKS/E011/E011.vix",
     "scan-number": "No0001",
     "output-path": "/var/scratch/mpurvins/",
     "subbands": [1, 2, 3, 4, 5, 6, 7, 8],
@@ -13,7 +13,7 @@
     },
     "delay-type": "sfxc",
     "delay-paths": {
-      "Ib": "/home/matyss/Work/RADIOBLOCKS/sfxc_test/delays/E011_Ib.del",
-      "Ir": "/home/matyss/Work/RADIOBLOCKS/sfxc_test/delays/E011_Ir.del"
+      "Ib": "/home/matyss/Work/RADIOBLOCKS/E011/delays/E011_Ib.del",
+      "Ir": "/home/matyss/Work/RADIOBLOCKS/E011/delays/E011_Ir.del"
     }
 }
