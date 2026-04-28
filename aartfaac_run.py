@@ -74,15 +74,20 @@ if __name__ == "__main__":
     center_frequencies = vex.center_frequencies()
     channel_mapping = vex.channel_mapping()
 
-    nr_samples_per_channel = (int(sample_rate * integration_time) // (nr_channels * 2)) 
-    nr_samples_per_channel -= nr_samples_per_channel % 8
+    nr_samples_per_channel = (int(sample_rate * integration_time) // (nr_channels * 2))
+    nr_samples_per_channel -= nr_samples_per_channel % 16
     n_integrations = np.ceil(duration / ((nr_samples_per_channel * nr_channels * 2) / sample_rate)) + 1
 
     delay_type = ctrl_file['delay-type']
 
     if delay_type == 'sfxc':
         delay_paths = {station: delay_path for station, delay_path in ctrl_file['delay-paths'].items()}
-        delays = sfxc_delays(vex, delay_paths, scan_nr, reference_station)
+        delays = sfxc_delays(
+            vex,
+            delay_paths,
+            scan_nr,
+            reference_station,
+        )
     else:
         delays = pycalc11_delays(vex, scan_nr, reference_station=reference_station)
 

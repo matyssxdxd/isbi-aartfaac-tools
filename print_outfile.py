@@ -5,7 +5,7 @@ import glob
 import numpy as np
 
 from utils.helpers import parse_arguments
-from utils.process_data import read_visibility_file
+from utils.read_data import read_subband
 
 BL_CROSS = 1
 POLS = ["RR", "RL", "LR", "LL"]
@@ -44,9 +44,11 @@ if __name__ == "__main__":
     guard = 3
 
     for file in files:
-        headers, visibilities = read_visibility_file(file, normalize=True)
+        headers, visibilities = read_subband(file)
 
-        cross_stack = np.asarray([v[BL_CROSS] for v in visibilities], dtype=np.complex64)
+        cross_stack = np.asarray(
+            [v[:, BL_CROSS, :, :] for v in visibilities], dtype=np.complex64
+        )
         w = np.asarray([h.weights[BL_CROSS] for h in headers], dtype=np.float64)
 
         cross_avg = np.tensordot(w, cross_stack, axes=(0, 0)) / w.sum()
@@ -55,12 +57,12 @@ if __name__ == "__main__":
 
         print(f"\n{os.path.basename(file)} vis_weight_sum={w.sum():.0f} vis_weight_mean={w.mean():.1f}")
 
-        for p, pol in enumerate(POLS):
-            spec = np.conj(cross_avg[:, p])
-            amp, snr, lag_bins, lag_spec = fringe_metrics(spec, chan_bw_hz)
-            print(f"{pol}: amp={amp:.4e}, snr={snr:.2f}, lag={lag_bins:+d}, bins({lag_spec*1e9:+.2f} ns)")
-
-
+        for polx in range(2):
+            for poly in range(2):
+                pol = POL_MAP[(polx, poly)]
+                spec = np.conj(cross_avg[:, polx, poly])
+                amp, snr, lag_bins, lag_spec = fringe_metrics(spec, chan_bw_hz)
+                print(f"{pol}: amp={amp:.4e}, snr={snr:.2f}, lag={lag_bins:+d}, bins({lag_spec*1e9:+.2f} ns)")
 
 
 

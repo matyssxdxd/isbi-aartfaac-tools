@@ -14,9 +14,9 @@ if __name__ == "__main__":
 
     for h, vis in zip(headers, visibilities):
         w = extract_weights(h)
-        norm = normalize_cross(vis)
-        norm, _ = normalize_auto(norm)
-        averaged, _ = weighted_average_integrations(norm, w)
+        # norm = normalize_cross(vis)
+        # norm, _ = normalize_auto(norm)
+        averaged, _ = weighted_average_integrations(vis, w)
         processed_data.append(averaged)
 
     processed_data = np.array(processed_data)

@@ -1,6 +1,5 @@
 import numpy as np
 import astropy.units as u
-import matplotlib.pyplot as plt
 
 from utils.delay_file_reader import DelayFileReader
 
@@ -39,41 +38,14 @@ def read_delays(file, scan_name):
 
     return np.array(sec_of_day), np.array(delays)
 
-
-def sfxc_delays(vex, delay_paths, scan, reference_station):
-    """Convert SFXC delay tables to ISBI-AARTFAAC-compatible delays.
-
-    For each station, this function reads the SFXC delay table for ``scan``,
-    maps ``sec_of_day`` entries to integer sample timestamps, and returns
-    structured arrays with ``timestamp`` and corrected ``delay`` fields.
-    Clock offsets and clock rates from ``vex`` are applied at each sample time.
-    The output dictionary is ordered to place ``reference_station`` first.
-
-    Parameters
-    ----------
-    vex : object
-        VEX helper object providing timing, sampling, and clock metadata via
-        ``clock_offsets()``, ``clock_rates()``, ``clock_epoch()``,
-        ``sample_rate()``, and ``start_time(scan)``.
-    delay_paths : dict[str, str or path-like]
-        Mapping from station name to SFXC delay file path.
-    scan : str
-        Scan name to extract from each delay file.
-    reference_station : str
-        Station to place first in the returned mapping.
-
-    Returns
-    -------
-    dict[str, np.ndarray]
-        Station-keyed mapping of structured arrays with dtype
-        ``[("timestamp", np.int64), ("delay", np.float64)]``.
-    """
+def sfxc_delays(
+    vex,
+    delay_paths,
+    scan,
+    reference_station,
+):
     delays = {}
-    sod_ref = None
-
-    clock_offsets = vex.clock_offsets()
-    clock_rates = vex.clock_rates()
-    clock_epochs = vex.clock_epoch()
+    sod_by_station = {}
 
     sample_rate = vex.sample_rate()
     scan_start = vex.start_time(scan)
@@ -91,36 +63,42 @@ def sfxc_delays(vex, delay_paths, scan, reference_station):
         sod = np.asarray(sod, dtype=np.float64)
         delay = np.asarray(delay, dtype=np.float64)
 
-        # TODO: Could be some error if sod for both delay tables do not match,
-        #       but can that even be the case?
-        if sod_ref is None:
-            sod_ref = sod
+        sod_by_station[station] = sod
 
         delta_sec = sod - scan_start_sod
-        timestamp = (scan_start_samples + np.rint(delta_sec * sample_rate)).astype(
-            np.int64
-        )
+        timestamp = (
+            scan_start_samples + np.rint(delta_sec * sample_rate)
+        ).astype(np.int64)
 
         arr = np.empty(
-            len(delay), dtype=[("timestamp", np.int64), ("delay", np.float64)]
+            len(delay),
+            dtype=[("timestamp", np.int64), ("delay", np.float64)],
         )
+
         arr["timestamp"] = timestamp
         arr["delay"] = delay
+
         delays[station] = arr
 
-    delta_sec_ref = sod_ref - scan_start_sod
-    t_abs = scan_start + delta_sec_ref * u.s
+    # Always apply clock correction (no scaling)
+    clock_offsets = vex.clock_offsets()
+    clock_rates = vex.clock_rates()
+    clock_epochs = vex.clock_epoch()
 
     for station, arr in delays.items():
+        sod = sod_by_station[station]
+
+        delta_sec = sod - scan_start_sod
+        t_abs = scan_start + delta_sec * u.s
+
         sec_clock = (t_abs - clock_epochs[station]).to_value(u.s)
-        arr["delay"] += clock_offsets[station] + sec_clock * clock_rates[station]
+
+        arr["delay"] += (
+            clock_offsets[station] + sec_clock * clock_rates[station]
+        )
 
     if reference_station not in delays:
         raise KeyError(f"Reference station '{reference_station}' not found in delays")
-
-    plt.plot(delays["Ib"][:]["delay"])
-    plt.plot(delays["Ir"][:]["delay"])
-    plt.show()
 
     ordered = {reference_station: delays[reference_station]}
     for station, arr in delays.items():
