@@ -29,6 +29,3 @@ def save_config(path, delays, center_frequencies, channel_mapping):
 
         center_frequencies = np.asarray(center_frequencies, dtype="<f8")
         channel_mapping = np.asarray(channel_mapping, dtype="<i4")
-
-        print(center_frequencies)
-        print(channel_mapping)

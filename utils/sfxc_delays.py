@@ -2,48 +2,36 @@ import numpy as np
 import astropy.units as u
 
 from utils.delay_file_reader import DelayFileReader
+from utils.vextractor import VEXtractor
+from typing import Tuple, List, Dict
 
 
-def read_delays(file, scan_name):
-    """Read VLBI delay values for a scan from an SFXC delay file.
-
-    The function instantiates :class:`DelayFileReader`, loads the file, finds
-    the requested scan, and returns the scan's sample times and delays.
-
-    Parameters
-    ----------
-    file : str or path-like
-        Path to an SFXC delay file.
-    scan_name : str
-        Name of the scan to extract, usually in format 'Noxxxx'.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        ``(sec_of_day, delays)`` arrays for the selected scan.
-    """
+def read_delays(file: str,
+                scan_name: str) -> Tuple[List[float], List[float]]:
     reader = DelayFileReader(file)
     reader.read_file()
 
     matching_scans = [scan for scan in reader.scans if scan["scan_name"] == scan_name]
+
     if not matching_scans:
         raise ValueError(f"Scan '{scan_name}' not found in {file}")
 
     scan = matching_scans[0]
     sec_of_day = []
     delays = []
+
     for point in scan["points"]:
         sec_of_day.append(point["sec_of_day"])
         delays.append(point["delay"])
 
-    return np.array(sec_of_day), np.array(delays)
+    return sec_of_day, delays
 
+# TODO: Pass vex path instead of VEXtractor object?
 def sfxc_delays(
-    vex,
-    delay_paths,
-    scan,
-    reference_station,
-):
+    vex: VEXtractor,
+    delay_paths: Dict[str, str],
+    scan: str,
+    reference_station: str) -> Dict[str, np.ndarray]:
     delays = {}
     sod_by_station = {}
 
@@ -80,7 +68,6 @@ def sfxc_delays(
 
         delays[station] = arr
 
-    # Always apply clock correction (no scaling)
     clock_offsets = vex.clock_offsets()
     clock_rates = vex.clock_rates()
     clock_epochs = vex.clock_epoch()
@@ -88,9 +75,14 @@ def sfxc_delays(
     for station, arr in delays.items():
         sod = sod_by_station[station]
 
+        # Calculates time offset (in seconds) relative to the scan start
         delta_sec = sod - scan_start_sod
+
+        # Convert time offsets back to absolute timestamps
         t_abs = scan_start + delta_sec * u.s
 
+        # Convert absolute timestamps to seconds since the station reference
+        # clock epoch
         sec_clock = (t_abs - clock_epochs[station]).to_value(u.s)
 
         arr["delay"] += (
@@ -100,6 +92,8 @@ def sfxc_delays(
     if reference_station not in delays:
         raise KeyError(f"Reference station '{reference_station}' not found in delays")
 
+    # TODO: Instead of this, could save some station 'key' like Ib, Ir
+    # Currently it makes sure that the delays for reference station come first
     ordered = {reference_station: delays[reference_station]}
     for station, arr in delays.items():
         if station != reference_station:

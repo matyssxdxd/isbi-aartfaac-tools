@@ -75,7 +75,6 @@ if __name__ == "__main__":
     channel_mapping = vex.channel_mapping()
 
     nr_samples_per_channel = (int(sample_rate * integration_time) // (nr_channels * 2))
-    nr_samples_per_channel -= nr_samples_per_channel % 16
     n_integrations = np.ceil(duration / ((nr_samples_per_channel * nr_channels * 2) / sample_rate)) + 1
 
     delay_type = ctrl_file['delay-type']
