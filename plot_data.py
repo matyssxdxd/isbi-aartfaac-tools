@@ -1,12 +1,22 @@
 from utils.read_data import read_all, read_subband
 from utils.process_data import extract_weights, normalize_cross, normalize_auto, weighted_average_integrations
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import glob
 import os
 
 if __name__ == "__main__":
-    output_path = "/home/matyss/Work/RADIOBLOCKS/isbi-aartfaac-tools/results/temp/"
+    parser = argparse.ArgumentParser(
+        description="Plot ISBI-AARTFAAC correlator data from an output directory."
+    )
+    parser.add_argument(
+        "output_path",
+        help="Directory containing correlator .out files.",
+    )
+    args = parser.parse_args()
+
+    output_path = args.output_path
     output_files = (sorted(glob.glob(os.path.join(output_path, "*.out"))))
 
     headers, visibilities = read_all(output_files)
@@ -84,4 +94,3 @@ if __name__ == "__main__":
         plt.plot(x, amp, label=pol, linewidth=1)
 
     plt.show()
-
