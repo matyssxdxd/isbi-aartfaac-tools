@@ -2,12 +2,23 @@ import numpy as np
 import astropy.units as u
 
 from utils.delay_file_reader import DelayFileReader
-from utils.vextractor import VEXtractor
-from typing import Tuple, List, Dict
 
+def read_delays(file, scan_name):
+    """
+    Read delay data for a specific scan from SFXC `.del` file.
 
-def read_delays(file: str,
-                scan_name: str) -> Tuple[List[float], List[float]]:
+    Args:
+        file: Path to the `.del` file to read.
+        scan_name: Name of the scan (usually in Noxxxx format) whose delay should be extracted.
+
+    Returns:
+        A tuple containing:
+            - sec_of_day: List of seconds-of-day values for each data point in the scan.
+            - delays: List of delay values corresponding to each data point.
+
+    Raises:
+        ValueError: If `scan_name` is not found in one of the delay files.
+    """
     reader = DelayFileReader(file)
     reader.read_file()
 
@@ -27,16 +38,36 @@ def read_delays(file: str,
     return sec_of_day, delays
 
 # TODO: Pass vex path instead of VEXtractor object?
-def sfxc_delays(
-    vex: VEXtractor,
-    delay_paths: Dict[str, str],
-    scan: str,
-    reference_station: str) -> Dict[str, np.ndarray]:
+def sfxc_delays(vex, delay_paths, scan_name, reference_station):
+    """
+    Read SFXC delay files for a scan and return clock-corrected delays by station.
+
+    The returned delays are converted to sample-based timstamps relative to the
+    scan start time and corrected using station clock offsets and clock rates
+    from the VEX file. The reference station is placed first in the returned
+    dictionary.
+
+    Args:
+        vex: VEXTractor object.
+        delay_paths: Mapping from station name to SFXC `.del` file path.
+        scan_name: Name of the scan (usually in Noxxxx format) whose delay should be extracted.
+        reference_station: Station name to place first in the returned dictionary.
+
+    Returns:
+        Mapping from station name to a structured NumPy array with fields:
+            - timestamp: Sample timestamp for each delay point.
+            - delay: Clock-corrected delay value in seconds.
+
+    Raises:
+        KeyError: If `reference_station` is not present in `delay_paths`
+            or no delays were loaded for it.
+        ValueError: If `scan_name` is not found in one of the delay files.
+    """
     delays = {}
     sod_by_station = {}
 
     sample_rate = vex.sample_rate()
-    scan_start = vex.start_time(scan)
+    scan_start = vex.start_time(scan_name)
 
     scan_start_samples = int(np.round(scan_start.unix * sample_rate))
     scan_start_sod = (
@@ -47,7 +78,7 @@ def sfxc_delays(
     )
 
     for station, delay_file in delay_paths.items():
-        sod, delay = read_delays(delay_file, scan)
+        sod, delay = read_delays(delay_file, scan_name)
         sod = np.asarray(sod, dtype=np.float64)
         delay = np.asarray(delay, dtype=np.float64)
 
