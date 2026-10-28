@@ -5,9 +5,8 @@ import glob
 import numpy as np
 
 from utils.helpers import parse_arguments
-from utils.read_data import read_subband
+from utils.read_data import read_subband, baseline_index
 
-BL_CROSS = 1
 POLS = ["RR", "RL", "LR", "LL"]
 POL_MAP = {(0, 0): "RR", (0, 1): "RL", (1, 0): "LR", (1, 1): "LL"}
 
@@ -45,24 +44,33 @@ if __name__ == "__main__":
 
     for file in files:
         headers, visibilities = read_subband(file)
-
-        cross_stack = np.asarray(
-            [v[:, BL_CROSS, :, :] for v in visibilities], dtype=np.complex64
-        )
-        w = np.asarray([h.weights[BL_CROSS] for h in headers], dtype=np.float64)
-
-        cross_avg = np.tensordot(w, cross_stack, axes=(0, 0)) / w.sum()
-
+        nst = headers[0].nr_receivers
         chan_bw_hz = headers[0].channel_bandwidth
+        print(f"\n{os.path.basename(file)}  ({nst} stations)")
 
-        print(f"\n{os.path.basename(file)} vis_weight_sum={w.sum():.0f} vis_weight_mean={w.mean():.1f}")
+        for s1 in range(nst):
+            for s2 in range(s1 + 1, nst):
+                bl = baseline_index(s1, s2)
+                cross_stack = np.asarray(
+                    [v[:, bl, :, :] for v in visibilities], dtype=np.complex64
+                )
+                # Clip: a negative weight is a baseline with no valid samples,
+                # and --referenceStation writes 0 for baselines it skipped.
+                w = np.clip(np.asarray([h.weights[bl] for h in headers], dtype=np.float64), 0, None)
 
-        for polx in range(2):
-            for poly in range(2):
-                pol = POL_MAP[(polx, poly)]
-                spec = np.conj(cross_avg[:, polx, poly])
-                amp, snr, lag_bins, lag_spec = fringe_metrics(spec, chan_bw_hz)
-                print(f"{pol}: amp={amp:.4e}, snr={snr:.2f}, lag={lag_bins:+d}, bins({lag_spec*1e9:+.2f} ns)")
+                print(f"  baseline {s1}-{s2}: vis_weight_sum={w.sum():.0f} vis_weight_mean={w.mean():.1f}")
+                if w.sum() == 0:
+                    print("    no weight (fully flagged, or not produced under --referenceStation)")
+                    continue
+
+                cross_avg = np.tensordot(w, cross_stack, axes=(0, 0)) / w.sum()
+
+                for polx in range(2):
+                    for poly in range(2):
+                        pol = POL_MAP[(polx, poly)]
+                        spec = np.conj(cross_avg[:, polx, poly])
+                        amp, snr, lag_bins, lag_spec = fringe_metrics(spec, chan_bw_hz)
+                        print(f"    {pol}: amp={amp:.4e}, snr={snr:.2f}, lag={lag_bins:+d}, bins({lag_spec*1e9:+.2f} ns)")
 
 
 

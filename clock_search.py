@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import argparse
 
-from utils.read_data import read_subband
+from utils.read_data import read_subband, baseline_index
 
 
 @dataclass(frozen=True)
@@ -117,19 +117,25 @@ def fringe_snr(spec, guard=3):
     noise_rms = float(np.sqrt(np.mean(np.abs(noise) ** 2))) if noise.size else 0.0
     return float(lag_abs[peak_idx] / noise_rms) if noise_rms > 0 else 0.0
 
-def fit_subband(path, pol_indices):
+def fit_subband(path, pol_indices, bl_cross=1):
+    """Fit residual delay and rate on one baseline of one subband.
+
+    `bl_cross` is the baseline's index in the record, baseline_index(i, j) for
+    stations i and j in ISBI's -i order; the default 1 is the only cross
+    baseline of a two-station run.
+    """
     headers, visibilities = read_subband(str(path))
     if len(headers) == 0:
         raise ValueError(f"{path}: no integrations found")
-    if headers[0].nr_receivers != 2:
-        raise ValueError(f"{path}: expected exactly two receivers")
+    BL_CROSS = bl_cross
 
     # Select the cross baseline, conjugate it, and average selected polarizations.
     pol_stack = [np.conj(visibilities[:, :, BL_CROSS, px, py]) for px, py in pol_indices]
     cross = np.mean(pol_stack, axis=0)
 
-    # Average integrations with the cross-baseline weights.
-    integration_weights = np.asarray([h.weights[BL_CROSS] for h in headers], dtype=np.float64)
+    # Average integrations with the cross-baseline weights. Clipped: a negative
+    # weight marks an integration with no valid samples.
+    integration_weights = np.clip(np.asarray([h.weights[BL_CROSS] for h in headers], dtype=np.float64), 0, None)
     spec = np.tensordot(integration_weights, cross, axes=(0, 0)) / np.sum(integration_weights)
 
     # Fit delay from unwrapped phase versus frequency.
@@ -162,6 +168,11 @@ if __name__ == "__main__":
     parser.add_argument("scan_nr")
     parser.add_argument("vex_in")
     parser.add_argument("vex_out")
+    parser.add_argument("--target", default="IR",
+                        help="Station whose clock_early is updated in the vex (its $CLOCK def name)")
+    parser.add_argument("--baseline", nargs=2, type=int, default=[0, 1], metavar=("REF", "TARGET"),
+                        help="Station INDICES in ISBI's -i order of the baseline to fit "
+                             "(default 0 1; reference first, so the residual belongs to TARGET)")
     args = parser.parse_args()
 
     result_directory = Path(args.out_files)
@@ -169,11 +180,10 @@ if __name__ == "__main__":
     vex_in = Path(args.vex_in)
     vex_out = Path(args.vex_out)
 
-    reference_station = "IB"
-    target_station = "IR"
+    target_station = args.target
     pols = ["RR", "LL"]
 
-    BL_CROSS = 1
+    bl_cross = baseline_index(*args.baseline)
     POL_TO_INDEX = {
         "RR": (0, 0),
         "RL": (0, 1),
@@ -191,7 +201,7 @@ if __name__ == "__main__":
     for pol in pols:
         pol_indices.append(POL_TO_INDEX[pol])
 
-    fits = [fit_subband(path, pol_indices) for path in subband_files]
+    fits = [fit_subband(path, pol_indices, bl_cross) for path in subband_files]
 
     for fit in fits:
         print(

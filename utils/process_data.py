@@ -1,12 +1,21 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.read_data import read_subband
+from utils.read_data import read_subband, nr_baselines, baseline_index
 
 
-def extract_weights(headers, n_baselines=3):
+def extract_weights(headers, n_baselines=None):
+    """Per-integration, per-baseline weights, shape (integration, baseline).
+
+    `n_baselines` defaults to what the header says (3 for two stations, 6 for
+    three, ...). Negative weights -- a baseline with no valid samples -- and
+    the zeros --referenceStation writes for baselines it did not produce both
+    clip to 0, so they drop out of a weighted average instead of dominating it.
+    """
+    if n_baselines is None:
+        n_baselines = nr_baselines(headers[0].nr_receivers)
     w = np.asarray([h.weights[:n_baselines] for h in headers], dtype=np.float64)
-    return w
+    return np.clip(w, 0, None)
 
 
 def weighted_average_integrations(data, weights):
@@ -29,25 +38,35 @@ def weighted_average_integrations(data, weights):
     return avg, weight_sum
 
 
-def normalize_cross(data, auto0_bl=0, cross_bl=1, auto1_bl=2, eps=1e-12):
+def _nr_stations(data):
+    """Stations in a (integration, channel, baseline, pol, pol) array."""
+    nbl = data.shape[2]
+    return int(round((np.sqrt(8 * nbl + 1) - 1) / 2))
+
+
+def normalize_cross(data, eps=1e-12):
+    """Every cross baseline divided by sqrt(auto_i * auto_j), per channel and
+    polarisation pair, giving a coherence. Autocorrelations are left as they
+    are. Works for any number of stations.
+
+    Note this is not just a rescaling: dividing per channel removes the
+    bandpass, so the SHAPE of the cross spectrum changes too.
+    """
     data = np.asarray(data)
     data_norm = data.copy()
 
     # data shape: (integration, channel, baseline, polx, poly)
-
-    a0_xx = np.real(data[:, :, auto0_bl, 0, 0])
-    a0_yy = np.real(data[:, :, auto0_bl, 1, 1])
-    a1_xx = np.real(data[:, :, auto1_bl, 0, 0])
-    a1_yy = np.real(data[:, :, auto1_bl, 1, 1])
-
-    denom = np.empty((data.shape[0], data.shape[1], 2, 2), dtype=np.float64)
-
-    denom[:, :, 0, 0] = np.sqrt(np.maximum(a0_xx * a1_xx, eps))
-    denom[:, :, 0, 1] = np.sqrt(np.maximum(a0_xx * a1_yy, eps))
-    denom[:, :, 1, 0] = np.sqrt(np.maximum(a0_yy * a1_xx, eps))
-    denom[:, :, 1, 1] = np.sqrt(np.maximum(a0_yy * a1_yy, eps))
-
-    data_norm[:, :, cross_bl, :, :] = data[:, :, cross_bl, :, :] / denom
+    n = _nr_stations(data)
+    for s2 in range(n):
+        for s1 in range(s2):
+            a1 = np.real(data[:, :, baseline_index(s1, s1)])
+            a2 = np.real(data[:, :, baseline_index(s2, s2)])
+            denom = np.empty((data.shape[0], data.shape[1], 2, 2), dtype=np.float64)
+            for px in range(2):
+                for py in range(2):
+                    denom[:, :, px, py] = np.sqrt(np.maximum(a1[:, :, px, px] * a2[:, :, py, py], eps))
+            bl = baseline_index(s1, s2)
+            data_norm[:, :, bl, :, :] = data[:, :, bl, :, :] / denom
 
     return data_norm
 
@@ -56,7 +75,7 @@ def normalize_auto(data, eps=1e-12):
     out = data.copy()
     refs = {}
 
-    for bl in (0, 2):
+    for bl in (baseline_index(s, s) for s in range(_nr_stations(data))):
         for p in range(2):
             ref = np.mean(np.real(data[:, :, bl, p, p]))
             ref = max(ref, eps)

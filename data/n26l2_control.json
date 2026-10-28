@@ -1,0 +1,33 @@
+{
+    "experiment": "n26l2",
+    "vex-path": "/var/scratch/mpurvins/n26l2/n26l2.vex",
+    "scan-number": "No0006",
+    "output-path": "/var/scratch/mpurvins/n26l2/out",
+    "subbands": [
+        1,
+        2,
+        3,
+        4
+    ],
+    "reference-station": "Ef",
+    "integration-time": 0.096,
+    "nr-channels": 256,
+    "data-paths": {
+        "Ef": "/var/scratch/mpurvins/n26l2/n26l2_ef_no0006.m5a",
+        "Hh": "/var/scratch/mpurvins/n26l2/n26l2_hh_no0006.m5a",
+        "Ir": "/var/scratch/mpurvins/n26l2/n26l2_ir_no0006.m5a"
+    },
+    "delay-type": "pycalc11",
+    "channel-mapping": {
+        "Ef": "4,6,0,2,5,7,1,3",
+        "Hh": "4,6,0,2,5,7,1,3",
+        "Ir": "6,4,2,0,7,5,3,1"
+    },
+    "clock-offsets-usec": {
+        "Hh": -55.606,
+        "Ir": -45.441
+    },
+    "start-time": "2026-06-01 13:10:01",
+    "runtime": 1,
+    "_comment": "n26l2 Ef/Hh/Ir, verified to fringe on all three baselines. The vex has no $THREADS and no $CLOCK, so the channel mapping (measured: the recorder does not write the order the vex claims; Ir has its polarisations exchanged) and the clocks (fringe search) are given here. The data files hold 2 s, hence start-time/runtime."
+}

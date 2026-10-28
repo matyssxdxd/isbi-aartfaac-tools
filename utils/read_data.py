@@ -18,6 +18,22 @@ class Header:
     first_channel_frequency: float
     channel_bandwidth: float
 
+def nr_baselines(nr_receivers: int) -> int:
+    """Baselines in a .out record, autocorrelations included."""
+    return nr_receivers * (nr_receivers + 1) // 2
+
+
+def baseline_index(station1: int, station2: int) -> int:
+    """Index of baseline (station1, station2) in a .out record.
+
+    ISBI stores them as s2*(s2+1)/2 + s1 with s1 <= s2, so for three stations:
+    0=(0,0) 1=(0,1) 2=(1,1) 3=(0,2) 4=(1,2) 5=(2,2). The two-station layout
+    0=auto, 1=cross, 2=auto is just the first three of these.
+    """
+    s1, s2 = min(station1, station2), max(station1, station2)
+    return s2 * (s2 + 1) // 2 + s1
+
+
 def print_header(header: Header) -> None:
     for field_name in header.__dataclass_fields__:
         print(f"{field_name}: {getattr(header, field_name)}")
@@ -35,7 +51,12 @@ def read_subband(output_file_path: str) -> Tuple[np.ndarray, np.ndarray]:
                 correlation_mode = struct.unpack("B", file.read(1))[0]
                 start_time = struct.unpack("d", file.read(8))[0]
                 end_time = struct.unpack("d", file.read(8))[0]
-                weights = struct.unpack("I" * 300, file.read(4 * 300))
+                # SIGNED: the correlator computes valid_samples/channels - 15
+                # and stores it as uint32, so a baseline with (almost) no valid
+                # data comes out negative -- read unsigned, -15 becomes
+                # 4294967281 and swamps any weighted average it enters. Use
+                # utils.process_data.extract_weights, which also clips at 0.
+                weights = struct.unpack("i" * 300, file.read(4 * 300))
                 nr_samples_per_integration = struct.unpack("I", file.read(4))[0]
                 nr_channels = struct.unpack("H", file.read(2))[0]
                 file.read(2)
