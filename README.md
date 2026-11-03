@@ -18,7 +18,7 @@ it on the path:
 Writes `<scan>.conf` (ISBI's `--delayFile`) and prints the `ISBI/ISBI` command
 to run from the correlator's repository. Control-file keys are documented at
 the top of `aartfaac_run.py`; `control.json` is an E011 example and
-`data/n26l2_control.json` a three-station n26l2 one.
+`data/n26l2_control.json` a five-station, mixed-rate n26l2 one.
 
 Things to know:
 
@@ -34,6 +34,12 @@ Things to know:
 - **Clocks.** The vex `clock_early` in force *at the scan* is used, not just
   the first one listed. `clock-offsets-usec` adds to it -- or, for a vex with
   no `$CLOCK`, is the whole clock (from a fringe search, e.g. `clock_search.py`).
+- **Axis offsets.** pycalc11 treats every antenna as alt-az with zero axis
+  offset, so the pycalc11 path adds the offset from the vex `$ANTENNA` itself.
+  It matters: Hartebeesthoek is an HA/Dec mount with a 6.69 m offset, ~21 ns.
+  Clocks fringe-fitted against a model without it have it absorbed, and are
+  wrong by that much once it is included -- refit them, or use correlator
+  clocks (e.g. JIVE's `.vax`) that were fitted against a complete model.
 - **Mixed sample rates.** `-f` is the slowest station's rate; faster stations
   get `--stationSampleRate` and are decimated by ISBI. The reference must be at
   the slowest rate, since its subbands define the frequency grid.

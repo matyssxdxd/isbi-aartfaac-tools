@@ -1,6 +1,7 @@
 {
+    "_comment": "n26l2 scan No0006, Ef/Hh/Ir at 64 Ms/s and Da/Cm at 128 Ms/s (decimated by ISBI). Uses JIVE's n26l2.vax, which -- unlike the n26l2.vex schedule -- has $THREADS, $CLOCK and $ANTENNA, so no channel-mapping or clock overrides are needed; Ir's swapped polarisations come out of $IF automatically. Verified against SFXC's fringe page for this scan (services.jive.eu/ftp_fringes/N26L2/scan06). Cm did not take part in the observation, so its file holds no sky signal; Ir had its polarisations swapped at the station, which the vax corrects in its $IF. The data files hold 2 s, hence start-time/runtime.",
     "experiment": "n26l2",
-    "vex-path": "/var/scratch/mpurvins/n26l2/n26l2.vex",
+    "vex-path": "/var/scratch/mpurvins/n26l2/n26l2.vax",
     "scan-number": "No0006",
     "output-path": "/var/scratch/mpurvins/n26l2/out",
     "subbands": [
@@ -15,19 +16,11 @@
     "data-paths": {
         "Ef": "/var/scratch/mpurvins/n26l2/n26l2_ef_no0006.m5a",
         "Hh": "/var/scratch/mpurvins/n26l2/n26l2_hh_no0006.m5a",
-        "Ir": "/var/scratch/mpurvins/n26l2/n26l2_ir_no0006.m5a"
+        "Ir": "/var/scratch/mpurvins/n26l2/n26l2_ir_no0006.m5a",
+        "Da": "/var/scratch/mpurvins/n26l2/n26l2_da_no0006.vdif",
+        "Cm": "/var/scratch/mpurvins/n26l2/n26l2_cm_no0006.vdif"
     },
     "delay-type": "pycalc11",
-    "channel-mapping": {
-        "Ef": "4,6,0,2,5,7,1,3",
-        "Hh": "4,6,0,2,5,7,1,3",
-        "Ir": "6,4,2,0,7,5,3,1"
-    },
-    "clock-offsets-usec": {
-        "Hh": -55.606,
-        "Ir": -45.441
-    },
-    "start-time": "2026-06-01 13:10:01",
-    "runtime": 1,
-    "_comment": "n26l2 Ef/Hh/Ir, verified to fringe on all three baselines. The vex has no $THREADS and no $CLOCK, so the channel mapping (measured: the recorder does not write the order the vex claims; Ir has its polarisations exchanged) and the clocks (fringe search) are given here. The data files hold 2 s, hence start-time/runtime."
+    "start-time": "2026-06-01 13:10:00",
+    "runtime": 2
 }

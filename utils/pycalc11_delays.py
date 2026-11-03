@@ -1,12 +1,49 @@
+import sys
+
 import numpy as np
 import astropy.units as u
+from astropy.coordinates import AltAz
 
 from pycalc11 import Calc
 from utils.vextractor import VEXtractor
 from astropy.time import TimeDelta
 
 
-def pycalc11_delays(vex, scan, stations, sample_rate, clock_offsets_usec=None, padding_sec=2):
+C_LIGHT = 299792458.0
+
+
+def axis_offset_delays(vex, stations, locations, source, times):
+    """Antenna axis-offset delay per station, seconds, over `times`.
+
+    pycalc11 hard-codes every station as an alt-az mount with ZERO axis offset,
+    so it leaves this term out entirely. For most antennas it is negligible
+    (Effelsberg 1.3 cm = 0.04 ns), but Hartebeesthoek is an HA/Dec mount with a
+    6.69 m offset: 21 ns at this source's declination, which is exactly the
+    kind of term a correlator model must carry. Standard form (e.g. Nothnagel
+    2009), for a source direction s:
+        az-el:   -AO/c * cos(elevation)
+        ha-dec:  -AO/c * cos(declination)      (constant for a fixed source)
+    """
+    out = {}
+    for station in stations:
+        (axis, offset) = vex.antenna_axis(station)
+        if offset == 0.0:
+            out[station] = np.zeros(len(times))
+        elif axis == ("ha", "dec"):
+            out[station] = np.full(len(times), -offset / C_LIGHT * np.cos(source.dec.radian[0]))
+        elif axis == ("az", "el"):
+            el = source.transform_to(AltAz(obstime=times, location=locations[station])).alt.radian
+            out[station] = -offset / C_LIGHT * np.cos(np.ravel(el))
+        else:
+            print(f"warning: {station} has mount {':'.join(axis)} with a {offset} m axis offset, "
+                  "which is not modelled; its delay will be off by up to "
+                  f"{offset / C_LIGHT * 1e9:.1f} ns", file=sys.stderr)
+            out[station] = np.zeros(len(times))
+    return out
+
+
+def pycalc11_delays(vex, scan, stations, sample_rate, clock_offsets_usec=None, padding_sec=2,
+                    axis_offsets=True, vex_clocks=True):
     """Geometric + clock delays from CALC (pycalc11) for one scan.
 
     Args:
@@ -23,6 +60,10 @@ def pycalc11_delays(vex, scan, stations, sample_rate, clock_offsets_usec=None, p
         clock_offsets_usec: Optional {station: usec} added on top of the vex
             clock. For stations whose vex has no $CLOCK (n26l2) this is the
             whole clock, found by a fringe search.
+        axis_offsets: Add each antenna's axis-offset delay from the vex
+            $ANTENNA (see axis_offset_delays), which pycalc11 itself omits.
+        vex_clocks: Apply the vex $CLOCK. False gives a clock-free model, the
+            starting point for fitting clocks of your own.
         padding_sec: Seconds of table before and after the scan. ISBI throws if
             it needs a delay outside the table, and it reads ahead of the start
             for filter history and the maximum delay.
@@ -71,11 +112,17 @@ def pycalc11_delays(vex, scan, stations, sample_rate, clock_offsets_usec=None, p
     clock_rates = vex.clock_rates(start_time)
     clock_offsets = vex.clock_offsets(start_time)
     clock_epochs = vex.clock_epoch(start_time)
+    if not vex_clocks:
+        clock_rates = {s: 0.0 for s in clock_rates}
+        clock_offsets = {s: 0.0 for s in clock_offsets}
     t_abs = start_time + time_offsets * u.s
+
+    ao = (axis_offset_delays(vex, stations, station_locations, source_coords, fine_time_grid)
+          if axis_offsets else {s: 0.0 for s in stations})
 
     final = {}
     for station in stations:
-        d = np.asarray(g_delays[station], np.float64)
+        d = np.asarray(g_delays[station], np.float64) + ao[station]
         epoch = clock_epochs[station]
         sec_clock = (t_abs - epoch).to_value(u.s) if epoch is not None else 0.0
         d = (d + clock_offsets[station] + sec_clock * clock_rates[station]

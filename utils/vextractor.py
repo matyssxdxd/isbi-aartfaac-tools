@@ -337,10 +337,25 @@ class VEXtractor:
         centers = (sorted(by_center) if subband_centers_hz is None
                    else [round(c) for c in subband_centers_hz])
 
+        self.uncovered = []
         entries = []
         for center in centers:
             if center not in by_center:
-                raise ValueError(f"Station '{station}' has no channel centred at {center / 1e6:.4f} MHz")
+                # A station recorded at a higher rate has wider channels: none is
+                # CENTRED on the correlator's subband, but one may CONTAIN it.
+                # Decimated, its band folds about the new Nyquist, so its channel
+                # carries both halves at once; which half correlates depends on
+                # the sidebands lining up (they do for n26l2: Cm/Da's 1626.49 USB
+                # x 64 MHz covers Ef's 1626.49 USB and 1690.49 LSB subbands).
+                bw = self.subband_bandwidth(station)
+                containing = [c for c in by_center if c - bw / 2 < center < c + bw / 2]
+                if containing:
+                    by_center[center] = by_center[containing[0]]
+                else:
+                    # Outside the station's coverage altogether: any channel will
+                    # do, its baselines in this subband will just be noise.
+                    self.uncovered.append(center)
+                    by_center[center] = by_center[sorted(by_center)[0]]
             chans = sorted(by_center[center])
             if len(chans) != 2:
                 raise ValueError(f"Station '{station}' has {len(chans)} channels at "
@@ -373,6 +388,24 @@ class VEXtractor:
         all_chandefs = self._freq_def_for(station).getall("chan_def")
         bandwidth = float(all_chandefs[0][3].split()[0])
         return bandwidth * 1e6
+
+    def antenna_axis(self, station):
+        """(axis_type, axis_offset_m) from the station's $ANTENNA def, e.g.
+        (('ha', 'dec'), 6.6934) for Hartebeesthoek. (('az', 'el'), 0.0) when the
+        vex does not say."""
+        try:
+            ant = self.vex["ANTENNA"][self.vex["STATION"][station]["ANTENNA"]]
+        except KeyError:
+            return ("az", "el"), 0.0
+        try:
+            axis = tuple(x.strip().lower() for x in ant["axis_type"])
+        except KeyError:
+            axis = ("az", "el")
+        try:
+            offset = float(str(ant["axis_offset"]).split()[0])
+        except KeyError:
+            offset = 0.0
+        return axis, offset
 
     def stations(self):
         """Return the list of station names from the VEX STATION block."""

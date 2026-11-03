@@ -22,6 +22,9 @@ Optional keys:
     clock-offsets-usec  {station: usec} added to the vex clock. For a vex with
                         no $CLOCK (n26l2) this is the whole clock, from a
                         fringe search.
+    vex-clocks          false -> ignore the vex $CLOCK entirely, so that
+                        clock-offsets-usec alone is the clock: for fitting
+                        clocks of your own against this delay model.
     reference-only      true -> --referenceStation 0: only baselines with the
                         reference station (plus all autocorrelations).
     start-time          "YYYY-MM-DD HH:MM:SS" to correlate part of a scan.
@@ -175,6 +178,10 @@ if __name__ == "__main__":
             entries = [e.strip() for e in entries.split(",")] if isinstance(entries, str) else [str(e) for e in entries]
         else:
             entries = vex.channel_mapping(station, center_frequencies)
+            if entries is not None and vex.uncovered:
+                print(f"warning: {station} does not cover subband(s) at "
+                      f"{', '.join(f'{c / 1e6:.2f}' for c in vex.uncovered)} MHz; "
+                      "its baselines there will be noise", file=sys.stderr)
             if entries is None:
                 raise SystemExit(f"The vex gives no $THREADS for {station}, so its VDIF channel order is unknown. "
                                  f"Give it in the control file: \"channel-mapping\": {{\"{station}\": \"...\"}}, "
@@ -203,15 +210,18 @@ if __name__ == "__main__":
     # --- delays -----------------------------------------------------------------
     clock_offsets_usec = ctrl_file.get("clock-offsets-usec", {})
     for station in stations:
-        if not vex.has_clock(station) and station not in clock_offsets_usec and station != reference_station:
+        if (not vex.has_clock(station) or not ctrl_file.get("vex-clocks", True)) \
+                and station not in clock_offsets_usec and station != reference_station:
             print(f"warning: no vex clock for {station} and no clock-offsets-usec entry; using 0",
                   file=sys.stderr)
 
+    vex_clocks = bool(ctrl_file.get("vex-clocks", True))
     if ctrl_file["delay-type"] == "sfxc":
         delays = sfxc_delays(vex, ctrl_file["delay-paths"], scan_nr, stations, sample_rate,
-                             clock_offsets_usec)
+                             clock_offsets_usec, vex_clocks=vex_clocks)
     else:
-        delays = pycalc11_delays(vex, scan_nr, stations, sample_rate, clock_offsets_usec)
+        delays = pycalc11_delays(vex, scan_nr, stations, sample_rate, clock_offsets_usec,
+                                 vex_clocks=vex_clocks)
 
     full_output_path = os.path.abspath(f'{ctrl_file["output-path"]}/{ctrl_file["experiment"]}/{scan_nr}')
     conf_dir = os.path.abspath(args.conf_dir) if args.conf_dir else full_output_path

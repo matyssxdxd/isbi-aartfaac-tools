@@ -37,7 +37,7 @@ def read_delays(file, scan_name):
 
     return sec_of_day, delays
 
-def sfxc_delays(vex, delay_paths, scan_name, stations, sample_rate, clock_offsets_usec=None):
+def sfxc_delays(vex, delay_paths, scan_name, stations, sample_rate, clock_offsets_usec=None, vex_clocks=True):
     """
     Read SFXC delay files for a scan and return clock-corrected delays by station.
 
@@ -54,6 +54,7 @@ def sfxc_delays(vex, delay_paths, scan_name, stations, sample_rate, clock_offset
         sample_rate: The correlator's -f in Hz -- the unit of the table
             timestamps. In a mixed-rate run this is the LOWEST station rate.
         clock_offsets_usec: Optional {station: usec} added on top of the vex clock.
+        vex_clocks: Apply the vex $CLOCK; False gives a clock-free model.
 
     Returns:
         Mapping from station name, ordered as `stations`, to a structured NumPy
@@ -79,6 +80,9 @@ def sfxc_delays(vex, delay_paths, scan_name, stations, sample_rate, clock_offset
     clock_offsets = vex.clock_offsets(scan_start)
     clock_rates = vex.clock_rates(scan_start)
     clock_epochs = vex.clock_epoch(scan_start)
+    if not vex_clocks:
+        clock_offsets = {s: 0.0 for s in clock_offsets}
+        clock_rates = {s: 0.0 for s in clock_rates}
 
     delays = {}
     for station in stations:
